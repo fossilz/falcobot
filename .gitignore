@@ -6,3 +6,4 @@ build/
 commands.txt
 npm-debug.log
 .env
+.env.production

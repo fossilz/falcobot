@@ -2,12 +2,16 @@
   "name": "falcobot",
   "version": "1.0.0",
   "description": "Falcodrin Discord Bot",
-  "main": "./build/index.js",
+  "main": "./dist/index.js",
   "scripts": {
-    "babel-node": "babel-node --",
-    "build": "./node_modules/.bin/babel src -d build",
-    "dist": "./node_modules/.bin/babel src -d dist --presets=babili",
-    "test": "./node_modules/.bin/mocha --compilers js:babel-core/register --reporter spec"
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "yarn build && node ./dist/server.js",
+    "start:dev": "nodemon ./dist/server.js",
+    "gen:env:types": "gen-env-types .env -o src/env.d.ts -e .",
+    "test": "yarn build && ava -v",
+    "example:script": "yarn build && ts-node -T ./scripts/example.script.ts",
+    "discord:login": "yarn build && ts-node -T ./scripts/discord.login.ts"
   },
   "repository": {
     "type": "git",
@@ -28,21 +32,23 @@
     "url": "https://github.com/fossilz/falcobot/issues"
   },
   "homepage": "https://github.com/fossilz/falcobot#readme",
-  "dependencies": {
-    "discord.js": "^12.5.1",
-    "dotenv": "^8.2.0"
-  },
   "devDependencies": {
-    "babel-cli": "^6.24.1",
-    "babel-core": "^6.25.0",
-    "babel-eslint": "^7.2.3",
-    "babel-plugin-transform-es2015-destructuring": "^6.23.0",
-    "babel-plugin-transform-object-rest-spread": "^6.23.0",
-    "babel-preset-es2015": "^6.24.1",
-    "babel-preset-es2015-node": "^6.1.1",
-    "babili": "^0.1.3",
-    "eslint": "^4.0.0",
-    "mocha": "^3.4.2",
-    "power-assert": "^1.4.4"
+    "@types/cors": "^2.8.10",
+    "@types/express": "^4.17.11",
+    "@types/fs-extra": "^9.0.7",
+    "@types/node": "^14.14.31",
+    "ava": "^3.15.0",
+    "eslint": "^7.20.0",
+    "fs-extra": "^9.1.0",
+    "gen-env-types": "^1.0.5",
+    "nodemon": "^2.0.7",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.1.5"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "discord.js": "^12.5.1",
+    "dotenv-safe": "^8.2.0",
+    "express": "^4.17.1"
   }
 }
