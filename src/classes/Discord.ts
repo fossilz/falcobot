@@ -8,7 +8,7 @@ class Discord {
   static instance: DiscordClient;
   static semaphore = false;
 
-  getInstance() {
+  public static getInstance() {
     if (!Discord.instance && !Discord.semaphore) {
       Discord.semaphore = true;
       const instance = new DiscordClient();

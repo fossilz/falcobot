@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import { Client, Message } from "discord.js";
 import { DISCORD_TOKEN } from "../config";
+import eventHandlers from './events';
 
 class DiscordClient extends EventEmitter {
   client: Client;
@@ -19,7 +20,12 @@ class DiscordClient extends EventEmitter {
   private init() {
     this.client = new Client();
 
-    this.client.on("ready", () => {
+    eventHandlers.forEach((eh) => {
+      console.log(`Connecting ${eh.eventName} handler`);
+      this.client.on(eh.eventName,eh.handler.bind(null,this));
+    });
+
+    /*this.client.on("ready", () => {
       const tag = this.client.user?.tag || "User not found";
       console.log(`Logged in as ${tag}!`);
 
@@ -38,7 +44,9 @@ class DiscordClient extends EventEmitter {
 
       // Handle messages outside of this class if you want
       this.emit("message", msg);
-    });
+    });*/
+
+
   }
 
   private handlePingMessage(msg: Message) {

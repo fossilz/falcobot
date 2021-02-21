@@ -7,3 +7,5 @@ commands.txt
 npm-debug.log
 .env
 .env.production
+/data
+/data/db.sqlite
