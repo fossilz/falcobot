@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
 import { Database } from 'sqlite';
-import Guild from '../dataModels/Guild';
+import GuildModel from '../dataModels/GuildModel';
 import DbRepository from './DbRepository';
 
 class GuildRepository extends DbRepository {
@@ -21,7 +21,7 @@ class GuildRepository extends DbRepository {
         `);
     }
 
-    insert = async (guild: Guild) => await this.db.run(
+    insert = async (guild: GuildModel) => await this.db.run(
         'INSERT OR IGNORE INTO guilds (guild_id, name, ownerID, prefix) VALUES (?, ?, ?, ?);', 
         guild.guild_id, 
         guild.name, 
@@ -29,7 +29,7 @@ class GuildRepository extends DbRepository {
         guild.prefix
     );
 
-    select = async(guild_id: string) => await this.db.get<Guild>('SELECT * FROM guilds WHERE guild_id = ?;', guild_id);
+    select = async(guild_id: string) => await this.db.get<GuildModel>('SELECT * FROM guilds WHERE guild_id = ?;', guild_id);
     selectPrefix = async(guild_id: string) => await this.db.get<string>('SELECT prefix FROM guilds WHERE guild_id = ?;', guild_id);
 
     updateName = async(guild_id: string, name: string) => await this.db.run('UPDATE guilds SET name = ? WHERE guild_id = ?;', name, guild_id);
