@@ -1,4 +1,4 @@
-class User {
+class UserModel {
     public guild_id: string;
     public user_id: string;
     public user_name: string;
@@ -6,4 +6,4 @@ class User {
     public bot: boolean;
 }
 
-export default User;
+export default UserModel;

@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
 import { Database } from 'sqlite';
-import Role from '../dataModels/Role';
+import RoleModel from '../dataModels/RoleModel';
 import DbRepository from './DbRepository';
 
 class RoleRepository extends DbRepository {
@@ -26,7 +26,7 @@ class RoleRepository extends DbRepository {
         `);
     }
 
-    insert = async (role: Role) => await this.db.run(
+    insert = async (role: RoleModel) => await this.db.run(
         'INSERT OR IGNORE INTO roles (guild_id, role_id, name, permissions, color, hoist, managed, mentionable, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);', 
         role.guild_id, 
         role.role_id,
@@ -39,10 +39,10 @@ class RoleRepository extends DbRepository {
         role.deleted
     );
 
-    select = async(role_id: string) => await this.db.get<Role>('SELECT * FROM roles WHERE role_id = ?;', role_id);
-    selectAll = async(guild_id: string) => await this.db.get<Role>('SELECT * FROM roles WHERE guild_id = ?;', guild_id);
+    select = async(role_id: string) => await this.db.get<RoleModel>('SELECT * FROM roles WHERE role_id = ?;', role_id);
+    selectAll = async(guild_id: string) => await this.db.get<RoleModel>('SELECT * FROM roles WHERE guild_id = ?;', guild_id);
 
-    update = async (role: Role) => await this.db.run(
+    update = async (role: RoleModel) => await this.db.run(
         'UPDATE roles SET name = ?, permissions = ?, color = ?, hoist = ?, managed = ?, mentionable = ?, deleted = ? WHERE guild_id = ? AND role_id = ?;',
         role.name,
         role.permissions,
