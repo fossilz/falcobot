@@ -1,31 +1,24 @@
-import { Message } from "discord.js";
+import RepositoryFactory from "./classes/RepositoryFactory";
 import { Discord, WebServer, DiscordClient } from "./index";
 
 // Discord instance (using singleton pattern)
-const dc = new Discord().getInstance();
-
-// Discord instance (NOT using singleton pattern if you know your are NOT going to instantiate it anywhere else)
-// const dc = new DiscordClient();
+let dc: DiscordClient;
 
 // Web server instance
-const ws = new WebServer();
+let ws: WebServer;
 
-ws.on("ready", async () => {
-  console.log("Server ready");
-  await dc.login();
-});
+const repo = RepositoryFactory.getInstanceAsync().then(() => {
+  dc = Discord.getInstance();
+  ws = new WebServer();
 
-dc.on("ready", async () => {
-  console.log("Discord client ready");
-});
-
-// You can either implement your logic within the Discord class
-// or decouple the logic using the Event emitter and do it outside the class
-// or create another class like DicordProtocol class that handles the messaging logic
-// This way you are using more of a SOLID Design Principle
-dc.on("message", async (msg: Message) => {
-  console.log(msg.content);
-  // ie. DicordProtocol.handleMessage(msg);
+  ws.on("ready", async () => {
+    console.log("Server ready");
+    await dc.login();
+  });
+  
+  dc.on("ready", async () => {
+    console.log("Discord client ready");
+  });
 });
 
 // ~~~~~~ Standard Process Exit Methods ~~~~~~~

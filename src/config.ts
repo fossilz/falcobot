@@ -16,3 +16,6 @@ export const PORT: number = +(process.env.PORT ?? 5000);
 
 // Discord authentication token
 export const DISCORD_TOKEN: string = process.env.DISCORD_TOKEN;
+
+// Sqlite db path
+export const SQLITE_FILENAME: string = process.env.SQLITE_FILENAME;

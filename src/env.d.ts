@@ -4,5 +4,6 @@ declare namespace NodeJS {
     PORT: string;
     CORS_ORIGIN: string;
     DISCORD_TOKEN: string;
+    SQLITE_FILENAME: string;
   }
 }

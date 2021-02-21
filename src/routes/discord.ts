@@ -49,7 +49,7 @@ router.get("/message/:name", async (req: Request, res: Response) => {
 router.post("/message", async (req: Request, res: Response) => {
   const body = req.body;
 
-  const dc = new Discord().getInstance();
+  const dc = Discord.getInstance();
   await dc.login();
 
   let data;
