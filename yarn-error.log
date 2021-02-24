@@ -1,5 +1,5 @@
 Arguments: 
-  D:\Program Files\Node\node.exe F:\Jon\AppData\Roaming\npm\node_modules\yarn\bin\yarn.js add @types/sqlite
+  D:\Program Files\Node\node.exe F:\Jon\AppData\Roaming\npm\node_modules\yarn\bin\yarn.js build
 
 PATH: 
   C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\dotnet\;C:\Program Files\Microsoft SQL Server\130\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;D:\Program Files\Nuget;D:\Program Files\Helm;D:\Program Files\Node\;C:\Program Files (x86)\Microsoft SQL Server\150\DTS\Binn\;D:\Program Files\TortoiseGit\bin;D:\Program Files\Microsoft VS Code\bin;D:\Program Files\Git\cmd;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;C:\ProgramData\DockerDesktop\version-bin;C:\Users\thinj\AppData\Local\Microsoft\WindowsApps;F:\Jon\AppData\Roaming\npm;C:\Users\thinj\.dotnet\tools;C:\Users\thinj\.dotnet\tools
@@ -14,19 +14,15 @@ Platform:
   win32 x64
 
 Trace: 
-  Error: https://registry.yarnpkg.com/@types%2fsqlite: Not found
-      at Request.params.callback [as _callback] (F:\Jon\AppData\Roaming\npm\node_modules\yarn\lib\cli.js:66988:18)
-      at Request.self.callback (F:\Jon\AppData\Roaming\npm\node_modules\yarn\lib\cli.js:140662:22)
-      at Request.emit (events.js:321:20)
-      at Request.<anonymous> (F:\Jon\AppData\Roaming\npm\node_modules\yarn\lib\cli.js:141634:10)
-      at Request.emit (events.js:321:20)
-      at IncomingMessage.<anonymous> (F:\Jon\AppData\Roaming\npm\node_modules\yarn\lib\cli.js:141556:12)
-      at Object.onceWrapper (events.js:427:28)
-      at IncomingMessage.emit (events.js:333:22)
-      at endReadableNT (_stream_readable.js:1204:12)
-      at processTicksAndRejections (internal/process/task_queues.js:84:21)
+  SyntaxError: D:\Git\falcobot\package.json: Unexpected token / in JSON at position 0
+      at JSON.parse (<anonymous>)
+      at F:\Jon\AppData\Roaming\npm\node_modules\yarn\lib\cli.js:1625:59
+      at Generator.next (<anonymous>)
+      at step (F:\Jon\AppData\Roaming\npm\node_modules\yarn\lib\cli.js:310:30)
+      at F:\Jon\AppData\Roaming\npm\node_modules\yarn\lib\cli.js:321:13
 
 npm manifest: 
+  //fossilz sucks
   {
     "name": "falcobot",
     "version": "1.0.0",

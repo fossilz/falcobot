@@ -1,6 +1,6 @@
-import { Role as DRole } from "discord.js";
+import { Role } from "discord.js";
 
-class Role {
+class RoleModel {
     public guild_id: string;
     public role_id: string;
     public name: string;
@@ -11,7 +11,7 @@ class Role {
     public mentionable: boolean;
     public deleted: boolean;
 
-    constructor(role?: DRole){
+    constructor(role?: Role){
         if (role === undefined) return;
         this.guild_id = role.guild.id;
         this.role_id = role.id;
@@ -25,4 +25,4 @@ class Role {
     }
 }
 
-export default Role;
+export default RoleModel;

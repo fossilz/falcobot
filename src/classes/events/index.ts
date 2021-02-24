@@ -5,6 +5,9 @@ import guildDelete from './guildDelete';
 import roleCreate from './roleCreate';
 import roleDelete from './roleDelete';
 import roleUpdate from './roleUpdate';
+import channelCreate from './channelCreate';
+import channelDelete from './channelDelete';
+import channelUpdate from './channelUpdate';
 
 export default [
     message,
@@ -13,5 +16,8 @@ export default [
     guildDelete,
     roleCreate,
     roleDelete,
-    roleUpdate
+    roleUpdate,
+    channelCreate,
+    channelDelete,
+    channelUpdate
 ];

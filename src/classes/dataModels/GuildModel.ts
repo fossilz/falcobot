@@ -1,12 +1,13 @@
-import { Guild as DGuild } from "discord.js";
+import { Guild } from "discord.js";
 
-class Guild {
+class GuildModel {
     public guild_id: string;
     public name: string;
     public ownerID: string;
+    public staffLogChannelID: string|null;
     public prefix: string;
 
-    constructor(guild?: DGuild){
+    constructor(guild?: Guild){
         this.prefix = '!';
         if (guild === undefined) return;
         this.guild_id = guild.id;
@@ -15,4 +16,4 @@ class Guild {
     }
 }
 
-export default Guild;
+export default GuildModel;
