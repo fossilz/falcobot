@@ -21,7 +21,6 @@ class DiscordClient extends EventEmitter {
     this.client = new Client();
 
     eventHandlers.forEach((eh) => {
-      console.log(`Connecting ${eh.eventName} handler`);
       this.client.on(eh.eventName,eh.handler.bind(null,this));
     });
 
@@ -64,14 +63,4 @@ class DiscordClient extends EventEmitter {
   }
 }
 
-// exporting this way (not as default) allows you to
-// use object destructuring when importing in another file
-// ie. import { someOtherExport } from "./classes/DiscordClient";
-export const someOtherExport = () => {
-  return "Hello";
-};
-
-// exporting as default allows you to name your import whatever you want as it is the default
-// ie. import DiscordClient from "./classes/DiscordClient";
-// ie. import WhateverNameYouWant from "./classes/DiscordClient";
 export default DiscordClient;

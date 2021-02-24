@@ -1,7 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { Database } from 'sqlite';
 import PermissionSetModel from '../dataModels/PermissionSetModel';
-import PermissionSetItemModel from '../dataModels/PermissionSetItemModel';
+import { PermissionSetItemModel, PermissionSetItemType } from '../dataModels/PermissionSetItemModel';
 import DbRepository from './DbRepository';
 
 class PermissionSetRepository extends DbRepository {
@@ -43,8 +43,8 @@ class PermissionSetRepository extends DbRepository {
     }
 
     select = async(guild_id: string, set_id: number) => await this.db.get<PermissionSetModel>('SELECT * FROM permissionSets WHERE guild_id = ? AND set_id = ?;', guild_id, set_id);
-    selectAll = async(guild_id: string) => await this.db.get<PermissionSetModel>('SELECT * FROM permissionSets WHERE guild_id = ?;', guild_id);
-    selectItems = async(guild_id: string, set_id: number) => await this.db.get<PermissionSetItemModel>('SELECT * FROM permissionSetItems WHERE guild_id = ? AND permissionset_id = ?;', guild_id, set_id);
+    selectAll = async(guild_id: string) => await this.db.all<PermissionSetModel[]>('SELECT * FROM permissionSets WHERE guild_id = ?;', guild_id);
+    selectItems = async(guild_id: string, set_id: number) => await this.db.all<PermissionSetItemModel[]>('SELECT * FROM permissionSetItems WHERE guild_id = ? AND permissionset_id = ?;', guild_id, set_id);
 
     updateName = async (guild_id: string, set_id: number, name: string) => await this.db.run(
         'UPDATE permissionSets SET name = ? WHERE guild_id = ? AND set_id = ?;',
@@ -53,11 +53,11 @@ class PermissionSetRepository extends DbRepository {
         set_id
     );
 
-    whitelist = async(guild_id: string, set_id: number, object_type: string, object_id: string) => {
-        if (object_type == 'role'){
+    whitelist = async(guild_id: string, set_id: number, object_type: PermissionSetItemType, object_id: string) => {
+        if (object_type == 'Role'){
             await this.db.run('UPDATE permissionSets SET useRoleWhitelist = 1 WHERE guild_id = ? AND set_id = ?;', guild_id, set_id);
         }
-        if (object_type == 'channel'){
+        if (object_type == 'Channel'){
             await this.db.run('UPDATE permissionSets SET useChannelWhitelist = 1 WHERE guild_id = ? AND set_id = ?;', guild_id, set_id);
         }
         await this.db.run(`
@@ -65,7 +65,7 @@ class PermissionSetRepository extends DbRepository {
             VALUES (:guildid, :setid, :oid, :otype, 1);
         `, { ':guildid': guild_id, ':setid': set_id, ':otype': object_type, ':oid': object_id });
     }
-    blacklist = async(guild_id: string, set_id: number, object_type: string, object_id: string) => {
+    blacklist = async(guild_id: string, set_id: number, object_type: PermissionSetItemType, object_id: string) => {
         await this.db.run(`
             INSERT OR REPLACE INTO permissionSetItems (guild_id, permissionset_id, object_id, object_type, allow)
             VALUES (:guildid, :setid, :oid, :otype, 1);
@@ -75,9 +75,9 @@ class PermissionSetRepository extends DbRepository {
     removeWhitelists = async(guild_id: string, set_id: number) =>
         await this.db.run(`
             UPDATE permissionSets SET useRoleWhitelist = 0 WHERE guild_id = :guildid AND set_id = :setid
-            AND NOT EXISTS (SELECT 1 FROM permissionSetItems WHERE guild_id = :guildid AND permissionset_id = :setid AND object_type = 'role' AND allow = 1);
+            AND NOT EXISTS (SELECT 1 FROM permissionSetItems WHERE guild_id = :guildid AND permissionset_id = :setid AND object_type = 'Role' AND allow = 1);
             UPDATE permissionSets SET useChannelWhitelist = 0 WHERE guild_id = :guildid AND set_id = :setid
-            AND NOT EXISTS (SELECT 1 FROM permissionSetItems WHERE guild_id = :guildid AND permissionset_id = :setid AND object_type = 'channel' AND allow = 1);
+            AND NOT EXISTS (SELECT 1 FROM permissionSetItems WHERE guild_id = :guildid AND permissionset_id = :setid AND object_type = 'Channel' AND allow = 1);
         `, { ':guildid': guild_id, ':setid': set_id});
 
     delete = async(guild_id: string, set_id: number) => 

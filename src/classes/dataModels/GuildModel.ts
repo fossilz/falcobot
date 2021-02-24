@@ -4,6 +4,7 @@ class GuildModel {
     public guild_id: string;
     public name: string;
     public ownerID: string;
+    public staffLogChannelID: string|null;
     public prefix: string;
 
     constructor(guild?: Guild){

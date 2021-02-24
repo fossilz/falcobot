@@ -40,7 +40,7 @@ class RoleRepository extends DbRepository {
     );
 
     select = async(role_id: string) => await this.db.get<RoleModel>('SELECT * FROM roles WHERE role_id = ?;', role_id);
-    selectAll = async(guild_id: string) => await this.db.get<RoleModel>('SELECT * FROM roles WHERE guild_id = ?;', guild_id);
+    selectAll = async(guild_id: string) => await this.db.all<RoleModel[]>('SELECT * FROM roles WHERE guild_id = ?;', guild_id);
 
     update = async (role: RoleModel) => await this.db.run(
         'UPDATE roles SET name = ?, permissions = ?, color = ?, hoist = ?, managed = ?, mentionable = ?, deleted = ? WHERE guild_id = ? AND role_id = ?;',
