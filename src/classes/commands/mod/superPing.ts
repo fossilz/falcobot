@@ -6,6 +6,7 @@ class SuperPingCommand extends Command {
     constructor(){
         super({
             name: 'superping',
+            category: 'mod',
             usage: 'superping <user mention/id> [message]',
             description: 'Pings the mentioned user on every channel with optional message',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
@@ -31,15 +32,13 @@ class SuperPingCommand extends Command {
 
             await c.send(`<@${member?.id}> ${msgText}`);
         });
-
-        const staffLog = new StaffLog("Action: Super Ping")
-            .addField('User', message.member, true)
-            .addField('Target', member);
-        if (msgText) {
-            staffLog.addField('Message', msgText);
-        }
-
-        await staffLog.send(message.guild, LogType.Command, this.name);
+        
+        const staffLog = StaffLog.FromCommand(this, message);
+        if (staffLog === null) return;
+        
+        staffLog.addField('Target', member, true);
+        
+        await staffLog.send();
     }
 }
 

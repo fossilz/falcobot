@@ -1,4 +1,5 @@
-import { Guild, MessageEmbed, TextChannel } from "discord.js";
+import { Guild, Message, MessageEmbed, TextChannel } from "discord.js";
+import { Command } from "../commands/Command";
 import RepositoryFactory from "../RepositoryFactory";
 
 export enum LogType {
@@ -6,69 +7,49 @@ export enum LogType {
     Event = 2
 }
 
-export class StaffLog {
-    title: string;
-    fields: StaffLogField[];
-    footer: string|null;
-    color: string|null;
+export class StaffLog extends MessageEmbed {
+    private guild: Guild;
+    private logType: LogType;
+    private name: string;
 
-    constructor(title: string){
-        this.title = title;
-        this.fields = [];
+    constructor(guild: Guild, logType: LogType, name: string) {
+        super();
+
+        this.guild = guild;
+        this.logType = logType;
+        this.name = name;
     }
 
-    addField = (name: string, value: any, inline?: boolean):StaffLog =>{
-        this.fields.push(new StaffLogField(name, value, inline));
-        return this;
-    }
-
-    send = async (guild: Guild, logType: LogType, name: string) => {
-        if (guild === undefined || guild === null || guild.me === null){
+    send = async () => {
+        if (this.guild === undefined || this.guild === null || this.guild.me === null){
             return;
         }
         const repo = await RepositoryFactory.getInstanceAsync();
-        const gModel = await repo.Guilds.select(guild.id);
+        const gModel = await repo.Guilds.select(this.guild.id);
         const staffLogChannelID = gModel?.staffLogChannelID;
         if (staffLogChannelID === undefined || staffLogChannelID === null){
             return;
         }
-        const logChannel = guild.channels.cache.get(staffLogChannelID);
+        const logChannel = this.guild.channels.cache.get(staffLogChannelID);
         if (
             logChannel === undefined || 
             !(logChannel instanceof TextChannel) || 
             !logChannel.viewable || 
-            !logChannel.permissionsFor(guild.me)?.has(['SEND_MESSAGES', 'EMBED_LINKS'])
+            !logChannel.permissionsFor(this.guild.me)?.has(['SEND_MESSAGES', 'EMBED_LINKS'])
         ){
             return;
         }
 
         // TODO: Insert code here to enable/disable logging on commands/events
-        console.log(`Logging ${logType} ${name}`);
+        console.log(`Logging ${this.logType} ${this.name}`);
 
-        const embed = new MessageEmbed()
-            .setTitle(this.title)
-            .setTimestamp();
-        if (this.color !== null) {
-            embed.setColor(this.color);
-        }
-        if (this.footer !== undefined && this.footer !== null) {
-            embed.setFooter(this.footer);
-        }
-        this.fields.forEach((field)=>{
-            embed.addField(field.name, field.value, field.inline);
-        });
-        logChannel.send(embed);
+        logChannel.send(this);
     }
-}
 
-class StaffLogField {
-    name: string;
-    value: any;
-    inline: boolean;
-
-    constructor(name: string, value: any, inline?: boolean){
-        this.name = name;
-        this.value = value;
-        this.inline = inline || false;
+    public static FromCommand = (command: Command, message: Message) : StaffLog | null => {
+        if (message.guild === null) return null;
+        return new StaffLog(message.guild, LogType.Command, command.name)
+            .setAuthor(message.author.username, message.author.avatarURL() || undefined)
+            .setDescription(`Used \`${command.name}\` command in <#${message.channel.id}>\n${message.content}`);
     }
 }

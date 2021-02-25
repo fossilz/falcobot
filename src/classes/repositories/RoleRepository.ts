@@ -27,7 +27,7 @@ class RoleRepository extends DbRepository {
     }
 
     insert = async (role: RoleModel) => await this.db.run(
-        'INSERT OR IGNORE INTO roles (guild_id, role_id, name, permissions, color, hoist, managed, mentionable, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);', 
+        'INSERT OR REPLACE INTO roles (guild_id, role_id, name, permissions, color, hoist, managed, mentionable, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);', 
         role.guild_id, 
         role.role_id,
         role.name,
@@ -55,7 +55,7 @@ class RoleRepository extends DbRepository {
         role.role_id
     );
 
-    delete = async(role_id: string) => await this.db.run('DELETE FROM roles WHERE role_id = ?;', role_id);
+    delete = async(guild_id: string, role_id: string) => await this.db.run('DELETE FROM roles WHERE guild_id = ? AND role_id = ?;', guild_id, role_id);
     deleteGuild = async(guild_id: string) => await this.db.run('DELETE FROM roles WHERE guild_id = ?;', guild_id);
 }
 

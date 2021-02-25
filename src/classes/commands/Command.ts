@@ -2,6 +2,7 @@ import { GuildChannel, GuildMember, Message, PermissionString } from 'discord.js
 
 export interface ICommandSettings {
     name: string;
+    category: string;
     usage?: string;
     description?: string;
     clientPermissions?: PermissionString[];
@@ -12,6 +13,7 @@ export interface ICommandSettings {
 
 export abstract class Command {
     public name: string;
+    public category: string;
     public usage: string;
     public description: string;
     public clientPermissions: PermissionString[];
@@ -21,6 +23,7 @@ export abstract class Command {
 
     constructor(options: ICommandSettings) {
         this.name = options.name;
+        this.category = options.category;
         this.usage = options.usage || options.name;
         this.description = options.description || '';
         this.clientPermissions = options.clientPermissions || ['SEND_MESSAGES', 'EMBED_LINKS'];

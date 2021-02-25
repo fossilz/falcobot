@@ -1,4 +1,4 @@
-import { Guild, Message, GuildMember } from "discord.js";
+import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel } from "discord.js";
 import ReservedCommandList from '../commands';
 import CommandModel from "../dataModels/CommandModel";
 import Repository from "../Repository";
@@ -25,23 +25,15 @@ export class CommandHandler {
         }
         const cmd = firstArg.toLowerCase();
 
-        // Get command model from sqlite
-        var command = await repo.Commands.select(message.guild.id, cmd);
-        // Abort if bad command or disabled
-        if (command === undefined || !command.enabled) {
-            return;
-        }
-
-        // Check the permissions
-        var permissionCheck = await PermissionSetHandler.CheckPermissions(message.guild.id, command.permissionset_id, message.member, message.channel);
-        if (!await CommandHandler.CommandCanExecute(permissionCheck, command, message.guild, message.member)){
+        var commandPermissions = await CommandHandler.GetCommandExecutionPermissions(message.guild, cmd, message.member, message.channel);
+        if (!commandPermissions.enabled || !commandPermissions.canExecute){
             return;
         }
 
         // Run the command
-        const reservedCommand = ReservedCommandList.find((c) => c.name === command?.command);
+        const reservedCommand = ReservedCommandList.find((c) => c.name === commandPermissions.command?.command);
         if (reservedCommand === undefined) {
-            console.log('TODO: implement custom command execution:', command);
+            console.log('TODO: implement custom command execution:', commandPermissions.command);
             return;
         }
         await reservedCommand.run(message, args);
@@ -73,6 +65,21 @@ export class CommandHandler {
         const msgCommandString = message.content.slice(prefix.length);
         console.log('msg command string', msgCommandString);
         return msgCommandString.split(/ +/g);
+    }
+
+    public static async GetCommandExecutionPermissions(guild: Guild, commandName: string, member: GuildMember | null, channel?: TextChannel | DMChannel | NewsChannel, checkPermissionsIfDisabled?: boolean) {
+        const repo = await RepositoryFactory.getInstanceAsync();
+        const command = await repo.Commands.select(guild.id, commandName);
+        if (command === undefined) {
+            return new CommandExecutionPermissions(null);
+        }
+        const perms = new CommandExecutionPermissions(command);
+        if (checkPermissionsIfDisabled !== true && !perms.enabled) return perms; // Don't bother checking permissions if we're attempting to execute & command disabled
+
+        var permissionCheck = await PermissionSetHandler.CheckPermissions(guild.id, command.permissionset_id, member, channel);
+        perms.canExecute = await CommandHandler.CommandCanExecute(permissionCheck, command, guild, member);
+
+        return perms;
     }
 
     private static async CommandCanExecute(result: PermissionCheckResult, command: CommandModel, guild: Guild, member: GuildMember | null) : Promise<boolean> {
@@ -112,5 +119,17 @@ export class CommandHandler {
             }
         }
         return true;
+    }
+}
+
+export class CommandExecutionPermissions {
+    command: CommandModel | null;
+    enabled: boolean;
+    canExecute: boolean;
+
+    constructor(command: CommandModel | null, enabled?: boolean, canExecute?: boolean) {
+        this.command = command;
+        this.enabled = enabled || command?.enabled || false;
+        this.canExecute = canExecute || false;
     }
 }

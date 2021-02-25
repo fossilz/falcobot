@@ -10,6 +10,9 @@ const handler: IEventHandler = {
 
         await repo.Guilds.deleteGuild(guild.id);
         await repo.Roles.deleteGuild(guild.id);
+        await repo.Channels.deleteGuild(guild.id);
+        await repo.Commands.deleteGuild(guild.id);
+        await repo.PermissionSets.deleteGuild(guild.id);
     }
 };
 

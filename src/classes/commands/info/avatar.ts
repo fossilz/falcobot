@@ -1,11 +1,12 @@
 import { Message, MessageEmbed } from "discord.js";
-import { LogType, StaffLog } from "../../behaviors/StaffLog";
+import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 
 class AvatarCommand extends Command {
     constructor(){
         super({
             name: 'avatar',
+            category: 'info',
             usage: 'avatar [user mention/ID]',
             description: 'Displays a user\'s avatar',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
@@ -26,11 +27,7 @@ class AvatarCommand extends Command {
             .setColor(member.displayHexColor);
         message.channel.send(embed);
 
-        const staffLog = new StaffLog("Action: Avatar")
-            .addField('User', message.member, true)
-            .addField('Target', member);
-
-        await staffLog.send(message.guild, LogType.Command, this.name);
+        await StaffLog.FromCommand(this, message)?.send();
     }
 }
 

@@ -8,7 +8,7 @@ const handler: IEventHandler = {
     handler: async (_: DiscordClient, role: Role) => {
         const repo = await RepositoryFactory.getInstanceAsync();
 
-        await repo.Roles.delete(role.id);
+        await repo.Roles.delete(role.guild.id, role.id);
 
         // Log the role deletion?
     }

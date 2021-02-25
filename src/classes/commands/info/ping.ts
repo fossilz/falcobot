@@ -1,11 +1,12 @@
 import { Message, MessageEmbed } from "discord.js";
-import { LogType, StaffLog } from "../../behaviors/StaffLog";
+import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 
 class PingCommand extends Command {
     constructor(){
         super({
             name: 'ping',
+            category: 'info',
             usage: 'ping',
             description: 'Gets bot\'s current latency',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
@@ -32,10 +33,7 @@ class PingCommand extends Command {
             .setTimestamp();
         msg.edit(embed);
 
-        const staffLog = new StaffLog("Action: Ping")
-            .addField('User', message.member, true);
-
-        await staffLog.send(message.guild, LogType.Command, this.name);
+        await StaffLog.FromCommand(this, message)?.send();
     }
 }
 
