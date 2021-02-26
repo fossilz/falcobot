@@ -17,17 +17,19 @@ class GuildRepository extends DbRepository {
                 name TEXT,
                 ownerID TEXT,
                 staffLogChannelID TEXT,
+                muteRoleID TEXT,
                 prefix TEXT DEFAULT "!" NOT NULL
             );
         `);
     }
 
     insert = async (guild: GuildModel) => await this.db.run(
-        'INSERT OR IGNORE INTO guilds (guild_id, name, ownerID, staffLogChannelID, prefix) VALUES (?, ?, ?, ?, ?);', 
+        'INSERT OR IGNORE INTO guilds (guild_id, name, ownerID, staffLogChannelID, muteRoleID, prefix) VALUES (?, ?, ?, ?, ?, ?);', 
         guild.guild_id, 
         guild.name, 
         guild.ownerID, 
         guild.staffLogChannelID,
+        guild.muteRoleID,
         guild.prefix
     );
 
@@ -36,6 +38,7 @@ class GuildRepository extends DbRepository {
 
     updateName = async(guild_id: string, name: string) => await this.db.run('UPDATE guilds SET name = ? WHERE guild_id = ?;', name, guild_id);
     updateStaffLogChannel = async(guild_id: string, staffLogChannelID: string|null) => await this.db.run('UPDATE guilds SET staffLogChannelID = ? WHERE guild_id = ?;', staffLogChannelID, guild_id);
+    updateMuteRole = async(guild_id: string, muteRoleID: string|null) => await this.db.run('UPDATE guilds SET muteRoleID = ? WHERE guild_id = ?;', muteRoleID, guild_id);
     updatePrefix = async(guild_id: string, prefix: string) => await this.db.run('UPDATE guilds SET prefix = ? WHERE guild_id = ?;', prefix, guild_id);
 
     deleteGuild = async(guild_id: string) => await this.db.run('DELETE FROM guilds WHERE guild_id = ?;', guild_id);

@@ -53,6 +53,7 @@ export default class GuildResolver {
                       color: 4211787
                     }
                   });
+                await repo.Guilds.updateMuteRole(guild.id, muteRole.id);
             } catch(err) {
                 console.error(err.message);
             }

@@ -8,6 +8,11 @@ const handler: IEventHandler = {
     handler: async (_: DiscordClient, role: Role) => {
         const repo = await RepositoryFactory.getInstanceAsync();
 
+        var guildModel = await repo.Guilds.select(role.guild.id);
+        if (guildModel?.muteRoleID === role.id) {
+            await repo.Guilds.updateMuteRole(role.guild.id, null);
+        }
+
         await repo.Roles.delete(role.guild.id, role.id);
 
         // Log the role deletion?

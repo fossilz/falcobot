@@ -5,6 +5,7 @@ class GuildModel {
     public name: string;
     public ownerID: string;
     public staffLogChannelID: string|null;
+    public muteRoleID: string|null;
     public prefix: string;
 
     constructor(guild?: Guild){
