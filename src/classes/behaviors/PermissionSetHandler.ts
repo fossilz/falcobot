@@ -39,10 +39,12 @@ export class PermissionSetHandler {
 
         let resultCheck = PermissionCheckResultType.Pass;
 
-        resultCheck |= await PermissionSetHandler.CheckRolePermissions(member, pSet, setItems);
-        resultCheck |= await PermissionSetHandler.CheckChannelPermissions(channel, pSet, setItems);
+        if (!(member?.hasPermission('ADMINISTRATOR'))) {
+            resultCheck |= await PermissionSetHandler.CheckRolePermissions(member, pSet, setItems);
+            resultCheck |= await PermissionSetHandler.CheckChannelPermissions(channel, pSet, setItems);
+        }
         // Add user check (future feature)
-        console.log('Permission check for pset: ', permissionset_id, 'member: ', member, 'channel: ', channel, "Yielded: ", resultCheck);
+        console.log('Permission check for pset: ', permissionset_id, 'member: ', member?.id, `${member?.user.username}#${member?.user.discriminator}`, 'channel: ', channel?.id, channel?.name, "Yielded: ", resultCheck);
 
         if (resultCheck !== PermissionCheckResultType.Pass) {
             resultCheck &= ~PermissionCheckResultType.Pass; // Remove the Pass bit
@@ -58,6 +60,9 @@ export class PermissionSetHandler {
     private static async CheckRolePermissions(member: GuildMember|null|undefined, pSet: PermissionSetModel, setItems: PermissionSetItemModel[]) : Promise<PermissionCheckResultType> {
         if (member === null || member == undefined){
             // No member, don't check this
+            return PermissionCheckResultType.Pass;
+        }
+        if (member.hasPermission('ADMINISTRATOR')) {
             return PermissionCheckResultType.Pass;
         }
         if (pSet.useRoleWhitelist) {
