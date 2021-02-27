@@ -7,6 +7,7 @@ class ChannelModel {
     public type: string;
     public parentID: string | null;
     public deleted: boolean;
+    public joinAutoRole_id: string;
 
     constructor(channel?: GuildChannel){
         if (channel === undefined) return;

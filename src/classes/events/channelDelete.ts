@@ -16,7 +16,7 @@ const handler: IEventHandler = {
             await repo.Guilds.updateStaffLogChannel(channel.guild.id, null);
         }
 
-        await repo.Channels.delete(channel.id);
+        await repo.Channels.delete(channel.guild.id, channel.id);
 
         // Log the new channel creation?
     }

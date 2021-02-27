@@ -8,6 +8,7 @@ import roleUpdate from './roleUpdate';
 import channelCreate from './channelCreate';
 import channelDelete from './channelDelete';
 import channelUpdate from './channelUpdate';
+import voiceStateUpdate from './voiceStateUpdate';
 
 export default [
     message,
@@ -19,5 +20,6 @@ export default [
     roleUpdate,
     channelCreate,
     channelDelete,
-    channelUpdate
+    channelUpdate,
+    voiceStateUpdate
 ];

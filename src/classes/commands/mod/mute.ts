@@ -4,6 +4,7 @@ import RepositoryFactory from "../../RepositoryFactory";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { TimeParser } from "../../behaviors/TimeParser";
+import { MemberRoleHelper } from '../../behaviors/MemberRoleHelper';
 
 class MuteCommand extends Command {
     constructor(){
@@ -65,9 +66,7 @@ class MuteCommand extends Command {
         if (!reason) reason = '`None`';
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
-        try {
-            await member.roles.add(muteRole);
-        } catch (err) {
+        if (!await MemberRoleHelper.TryAssignRole(member, muteRole)) {
             // Error
             return;
         }
@@ -95,18 +94,17 @@ class MuteCommand extends Command {
 
         if (timeSpan !== null && timeSpan.totalMilliseconds > 0) {
             message.client.setTimeout(async () => {
-                try {
-                    await member.roles.remove(muteRole);
-                    const unmuteEmbed = new MessageEmbed()
-                        .setTitle('Unmute Member')
-                        .setDescription(`${member} has been unmuted.`)
-                        .setTimestamp()
-                        .setColor(me.displayHexColor);
-                    message.channel.send(unmuteEmbed);
-                } catch (err) {
+                if (!await MemberRoleHelper.TryRemoveRole(member, muteRole)) {
                     // Error
                     return;
                 }
+                const unmuteEmbed = new MessageEmbed()
+                    .setTitle('Unmute Member')
+                    .setDescription(`${member} has been unmuted.`)
+                    .setTimestamp()
+                    .setColor(me.displayHexColor);
+                message.channel.send(unmuteEmbed);
+                
             }, timeSpan.totalMilliseconds);
         }
 

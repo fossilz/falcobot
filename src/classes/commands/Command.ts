@@ -1,4 +1,4 @@
-import { GuildChannel, GuildMember, Message, PermissionString } from 'discord.js';
+import { GuildChannel, GuildMember, Message, PermissionString, Role } from 'discord.js';
 
 export interface ICommandSettings {
     name: string;
@@ -51,5 +51,13 @@ export abstract class Command {
         if (matches === null) return;
         const id = matches[1];
         return message.guild.members.cache.get(id);
+    }
+
+    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
+        if (message === null || message.guild === null || mention === undefined || mention === null) return;
+        const matches = mention.match(/^<@&(\d+)>$/);
+        if (matches === null) return;
+        const id = matches[1];
+        return message.guild.roles.cache.get(id);
     }
 }
