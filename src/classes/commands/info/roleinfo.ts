@@ -1,6 +1,7 @@
 import { Message, MessageEmbed } from "discord.js";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
+import PermissionList from '../../utils/permissions';
 
 class RoleInfoCommand extends Command {
     constructor(){
@@ -29,7 +30,13 @@ class RoleInfoCommand extends Command {
         }
 
         // Get role permissions
-        const rolePermissions = role.permissions.toArray();
+        const permArray: string[] = [];
+        const roleInfoPermissions = Object.values(PermissionList).filter(x => x.showRoleInfo).sort((a,b) => (a.sortOrder > b.sortOrder) ? 1 : -1);
+        roleInfoPermissions.forEach(p => {
+            if (role.permissions.has(p.permission)) {
+                permArray.push(p.description);
+            }
+        });
 
         // Reverse role position
         const position = `\`${message.guild.roles.cache.size - role.position}\`/\`${message.guild.roles.cache.size}\``;
@@ -46,7 +53,7 @@ class RoleInfoCommand extends Command {
             .addField('Members', `\`${role.members.size}\``, true)
             .addField('Hoisted', `\`${role.hoist}\``, true)
             .addField('Created On', `\`${role.createdAt}\``, true)
-            .addField('Permissions', `\`\`\`${rolePermissions.join(', ')}\`\`\``)
+            .addField('Permissions', `\`\`\`${permArray.join(', ')}\`\`\``)
             .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(role.hexColor);
