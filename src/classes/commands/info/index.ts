@@ -1,16 +1,16 @@
 import { Command } from '../Command';
 import AvatarCommand from "./avatar";
 import PingCommand from "./ping";
-import CommandCommand from './command';
 import MembersCommand from './members';
 import RoleInfoCommand from './roleinfo';
+import HelpCommand from './help';
 
 const InfoCommands:Command[] = [
     new AvatarCommand(),
     new PingCommand(),
-    new CommandCommand(),
     new MembersCommand(),
-    new RoleInfoCommand()
+    new RoleInfoCommand(),
+    new HelpCommand()
 ]
 
 export default InfoCommands;

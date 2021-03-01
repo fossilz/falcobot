@@ -6,15 +6,15 @@ import { Command } from "../Command";
 import CommandModel from "src/classes/dataModels/CommandModel";
 import ReservedCommandList from '../';
 
-class CommandCommand extends Command {
+class HelpCommand extends Command {
     constructor(){
         super({
-            name: 'command',
+            name: 'help',
             category: 'info',
-            usage: 'command [commandname] [enable|disable|log]',
+            usage: 'help [commandname]',
             description: 'Get command information',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
-            examples: ['command', 'command purge', 'command superping disable'],
+            examples: ['help', 'help purge'],
             logByDefault: false
         });
     }
@@ -31,42 +31,40 @@ class CommandCommand extends Command {
             commandName = args.shift();
         }
 
-        if (args.length === 0){
-            const commandHelpers = await this.getCommandHelpers(commandName, commands, guild, message.member);
-            const embed = new MessageEmbed()
-                .setTimestamp()
-                .setColor(message.guild.me.displayHexColor);
-            if (commandHelpers.length === 1 && commandHelpers[0].category === undefined && commandHelpers[0].commands.length === 1) {
-                const command = commandHelpers[0].commands[0];
-                const rCommand = ReservedCommandList.find(rc => rc.name == command.command);
-                if (rCommand != undefined){
-                    embed
-                        .setTitle(rCommand.name)
-                        .setDescription(rCommand.description);
-                    embed.addField('Category', rCommand.category, true);
-                    embed.addField('Enabled', command.enabled ? 'Yes' : 'No', true);
-                    embed.addField('Usage', rCommand.usage);
-                    if( rCommand.examples.length > 0) {
-                        embed.addField('Examples', rCommand.examples.join('\n'));
-                    }
-                } else {
-                    // Custom command
-                    embed.setTitle(command.command);
-                    embed.setDescription("This is a custom command");
-                    embed.addField('Enabled', command.enabled ? 'Yes' : 'No', true);
+        const commandHelpers = await this.getCommandHelpers(commandName, commands, guild, message.member);
+        const embed = new MessageEmbed()
+            .setTimestamp()
+            .setColor(message.guild.me.displayHexColor);
+        if (commandHelpers.length === 1 && commandHelpers[0].category === undefined && commandHelpers[0].commands.length === 1) {
+            const command = commandHelpers[0].commands[0];
+            const rCommand = ReservedCommandList.find(rc => rc.name == command.command);
+            if (rCommand != undefined){
+                embed
+                    .setTitle(rCommand.name)
+                    .setDescription(rCommand.description);
+                embed.addField('Category', rCommand.category, true);
+                embed.addField('Enabled', command.enabled ? 'Yes' : 'No', true);
+                embed.addField('Usage', rCommand.usage);
+                if( rCommand.examples.length > 0) {
+                    embed.addField('Examples', rCommand.examples.join('\n'));
                 }
             } else {
-                embed
-                    .setTitle("Falcobot Commands")
-                    .setFooter("See `command [commandName]` for more details");
-                commandHelpers.forEach(ch => {
-                    embed.addField(ch.category,ch.commands.map(c=>c.command).join(' '));
-                });
+                // Custom command
+                embed.setTitle(command.command);
+                embed.setDescription("This is a custom command");
+                embed.addField('Enabled', command.enabled ? 'Yes' : 'No', true);
             }
-
-            message.channel.send(embed);
-            return;
+        } else {
+            embed
+                .setTitle("Falcobot Commands")
+                .setFooter("See `help [commandName]` for more details");
+            commandHelpers.forEach(ch => {
+                embed.addField(ch.category,ch.commands.map(c=>c.command).join(' '));
+            });
         }
+
+        message.channel.send(embed);
+        return;
 
         await StaffLog.FromCommand(this, message)?.send();
     }
@@ -131,4 +129,4 @@ class CommandCategory {
     commands: CommandModel[] = [];
 }
 
-export default CommandCommand;
+export default HelpCommand;
