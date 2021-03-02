@@ -1,4 +1,4 @@
-import { GuildChannel, Guild, Role, VoiceChannel } from "discord.js";
+import { GuildChannel, Guild, Role, VoiceChannel, GuildMember } from "discord.js";
 import ChannelModel from "../dataModels/ChannelModel";
 import GuildModel from '../dataModels/GuildModel';
 import RoleModel from '../dataModels/RoleModel';
@@ -6,6 +6,8 @@ import RepositoryFactory from "../RepositoryFactory";
 import CommandList from '../commands';
 import CommandModel from "../dataModels/CommandModel";
 import Repository from "../Repository";
+import { asyncForEach } from "../utils/functions";
+import MemberModel from "../dataModels/MemberModel";
 
 export default class GuildResolver {
     public static ResolveGuild = async(guild: Guild) => {
@@ -18,15 +20,32 @@ export default class GuildResolver {
         const channels = guild.channels.cache.array();
         await GuildResolver.ResolveGuildRoles(repo, guild, roles, channels);
 
-        channels.forEach(async (channel: GuildChannel) => {
+        await asyncForEach(channels, async (channel: GuildChannel) => {
             var c = new ChannelModel(channel);
             await repo.Channels.insert(c);
         });
 
+        await GuildResolver.ResolveGuildMembers(repo, guild);
+
         // Insert all reserved (system) commands
-        CommandList.forEach(async (command) => {
+        await asyncForEach(CommandList, async (command) => {
             var commandModel = new CommandModel(guild.id, command);
             await repo.Commands.insert(commandModel);
+        });
+    }
+
+    private static ResolveGuildMembers = async(repo: Repository, guild: Guild) : Promise<void> => {
+        const members = guild.members.cache.array();
+        const guildMembers = await repo.Members.selectAll(guild.id);
+
+        const excessMembers = guildMembers.filter(x => members.find(m => m.user.id == x.user_id) === undefined);
+        await asyncForEach(excessMembers, async (member: MemberModel) => {
+            await repo.Members.updateDeleted(guild.id, member.user_id, true);
+        });
+
+        await asyncForEach(members, async (member: GuildMember) => {
+            const memberModel = new MemberModel(member);
+            await repo.Members.insert(memberModel);
         });
     }
 
@@ -34,11 +53,11 @@ export default class GuildResolver {
         const roleModels = await repo.Roles.selectAll(guild.id);
 
         const excessRoles = roleModels.filter((rm) => roles.find((r) => r.id == rm.role_id) === undefined);
-        excessRoles.forEach(async (r) => {
-            repo.Roles.delete(guild.id, r.role_id);
+        await asyncForEach(excessRoles, async (r) => {
+            await repo.Roles.delete(guild.id, r.role_id);
         });
 
-        roles.forEach(async (role: Role) => {
+        await asyncForEach(roles, async (role: Role) => {
             var newRole = new RoleModel(role);
             await repo.Roles.insert(newRole);
         });
@@ -57,25 +76,37 @@ export default class GuildResolver {
             } catch(err) {
                 console.error(err.message);
             }
-            channels.forEach(async (channel: GuildChannel) => {
-                try {
-                    if (guild.me === null || muteRole === undefined) return;
-                    if (channel.viewable && channel.permissionsFor(guild.me)?.has('MANAGE_ROLES')) {
-                        if (channel.type === 'text') // Deny permissions in text channels
-                            await channel.updateOverwrite(muteRole, {
-                            'SEND_MESSAGES': false,
-                            'ADD_REACTIONS': false
-                            });
-                        else if (channel instanceof VoiceChannel && channel.editable) // Deny permissions in voice channels
-                            await channel.updateOverwrite(muteRole, {
-                            'SPEAK': false,
-                            'STREAM': false
-                            });
-                    }
-                } catch (err) {
-                    console.error(err.stack);
-                }
-            })
+            await asyncForEach(channels, async (channel: GuildChannel) => {
+                await GuildResolver.AddChannelToMuteRole(muteRole, channel, guild.me);
+            });
+        }
+    }
+
+    public static GetMuteRoleForGuild = (guild: Guild) : Role | undefined => {
+        const roles = guild.roles.cache.array();
+        return roles.find(r => r.name.toLowerCase() === 'muted');
+    }
+
+    public static AddChannelToMuteRole = async(muteRole: Role | undefined, channel: GuildChannel, me: GuildMember | null) => {
+        if (muteRole === undefined || me === null) {
+            return;
+        }
+        if (!channel.viewable || !channel.permissionsFor(me)?.has('MANAGE_ROLES')) {
+            return;
+        }
+        try {
+            if (channel.type === 'text') // Deny permissions in text channels
+                await channel.updateOverwrite(muteRole, {
+                'SEND_MESSAGES': false,
+                'ADD_REACTIONS': false
+                });
+            else if (channel instanceof VoiceChannel && channel.editable) // Deny permissions in voice channels
+                await channel.updateOverwrite(muteRole, {
+                'SPEAK': false,
+                'STREAM': false
+                });
+        } catch (err) {
+            console.error(err.stack);
         }
     }
 }

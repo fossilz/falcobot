@@ -1,4 +1,5 @@
 import { TextChannel, VoiceChannel, CategoryChannel } from "discord.js";
+import GuildResolver from "../behaviors/GuildResolver";
 import ChannelModel from '../dataModels/ChannelModel';
 import DiscordClient from "../DiscordClient";
 import RepositoryFactory from "../RepositoryFactory";
@@ -11,6 +12,9 @@ const handler: IEventHandler = {
 
         const c = new ChannelModel(channel);
         await repo.Channels.insert(c);
+
+        const muteRole = GuildResolver.GetMuteRoleForGuild(channel.guild);
+        await GuildResolver.AddChannelToMuteRole(muteRole, channel, channel.guild.me);
 
         // Log the new channel creation?
     }

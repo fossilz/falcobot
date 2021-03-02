@@ -9,6 +9,8 @@ import channelCreate from './channelCreate';
 import channelDelete from './channelDelete';
 import channelUpdate from './channelUpdate';
 import voiceStateUpdate from './voiceStateUpdate';
+import guildMemberRemove from './guildMemberRemove';
+import guildMemberAdd from './guildMemberAdd';
 
 export default [
     message,
@@ -21,5 +23,7 @@ export default [
     channelCreate,
     channelDelete,
     channelUpdate,
-    voiceStateUpdate
+    voiceStateUpdate,
+    guildMemberRemove,
+    guildMemberAdd
 ];

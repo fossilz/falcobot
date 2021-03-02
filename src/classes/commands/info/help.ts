@@ -1,10 +1,10 @@
 import { Guild, GuildMember, Message, MessageEmbed } from "discord.js";
 import { CommandHandler } from "../../behaviors/CommandHandler";
 import RepositoryFactory from "../../RepositoryFactory";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import CommandModel from "src/classes/dataModels/CommandModel";
 import ReservedCommandList from '../';
+import { asyncForEach } from "../../utils/functions";
 
 class HelpCommand extends Command {
     constructor(){
@@ -64,9 +64,6 @@ class HelpCommand extends Command {
         }
 
         message.channel.send(embed);
-        return;
-
-        await StaffLog.FromCommand(this, message)?.send();
     }
 
     private getCommandHelpers = async (commandName: string|undefined, commands: CommandModel[], guild: Guild, member: GuildMember|null) : Promise<CommandCategory[]> => {
@@ -115,12 +112,6 @@ class HelpCommand extends Command {
         if (!pModel.canExecute) return;
         if (pModel.command === null) return;
         return pModel.command;
-    }
-}
-
-async function asyncForEach<T>(array: Array<T>, callback: (arg: T, index?: number, array?: Array<T>) => Promise<void>) {
-    for (let index = 0; index < array.length; index++) {
-        await callback(array[index], index, array);
     }
 }
 
