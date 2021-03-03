@@ -11,6 +11,7 @@ import channelUpdate from './channelUpdate';
 import voiceStateUpdate from './voiceStateUpdate';
 import guildMemberRemove from './guildMemberRemove';
 import guildMemberAdd from './guildMemberAdd';
+import guildMemberUpdate from './guildMemberUpdate';
 
 export default [
     message,
@@ -25,5 +26,6 @@ export default [
     channelUpdate,
     voiceStateUpdate,
     guildMemberRemove,
-    guildMemberAdd
+    guildMemberAdd,
+    guildMemberUpdate
 ];

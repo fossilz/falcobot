@@ -45,11 +45,17 @@ export abstract class Command {
         return message.guild.channels.cache.get(id);
     }
 
-    protected extractMemberMention = (message: Message, mention: string) : GuildMember | undefined => {
+    protected extractMemberIDFromMention = (message: Message, mention: string) : string | undefined => {
         if (message === null || message.guild === null || mention === undefined || mention === null) return;
         const matches = mention.match(/^<@!?(\d+)>$/);
         if (matches === null) return;
-        const id = matches[1];
+        return matches[1];
+    }
+
+    protected extractMemberMention = (message: Message, mention: string) : GuildMember | undefined => {
+        if (message === null || message.guild === null) return;
+        const id = this.extractMemberIDFromMention(message, mention);
+        if (id === undefined) return;
         return message.guild.members.cache.get(id);
     }
 

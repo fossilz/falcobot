@@ -41,11 +41,12 @@ class MemberRepository extends DbRepository {
     });
 
     select = async(guild_id: string, user_id: string) => await this.db.get<MemberModel>('SELECT * FROM members WHERE guild_id = ? AND user_id = ?;', guild_id, user_id);
-    selectUsername = async(guild_id: string, user_name: string) => await this.db.all<MemberModel[]>('SELECT * FROM members WHERE guild_id = ? AND user_name = ?;', guild_id, '%' + user_name + '%');
+    selectUsername = async(guild_id: string, user_name: string) => await this.db.all<MemberModel[]>('SELECT * FROM members WHERE guild_id = ? AND user_name LIKE ?;', guild_id, '%' + user_name + '%');
+    selectUsernameDiscriminator = async(guild_id: string, user_name: string, user_discriminator: string) => await this.db.all<MemberModel[]>('SELECT * FROM members WHERE guild_id = ? AND user_name LIKE ? AND user_discriminator = ?;', guild_id, '%' + user_name + '%', user_discriminator);
     selectAll = async(guild_id: string) => await this.db.all<MemberModel[]>('SELECT * FROM members WHERE guild_id = ?;', guild_id);
 
     updateUserName = async(guild_id: string, user_id: string, user_name: string, user_discriminator: string) => await this.db.run('UPDATE members SET user_name = ?, user_discriminator = ? WHERE guild_id = ? AND user_id = ?;', user_name, user_discriminator, guild_id, user_id);
-    updateNickname = async(guild_id: string, user_id: string, nickname: string) => await this.db.run('UPDATE members SET nickname = ? WHERE guild_id = ? AND user_id = ?;', nickname, guild_id, user_id);
+    updateNickname = async(guild_id: string, user_id: string, nickname: string | null) => await this.db.run('UPDATE members SET nickname = ? WHERE guild_id = ? AND user_id = ?;', nickname, guild_id, user_id);
     updateDeleted = async(guild_id: string, user_id: string, deleted: boolean) => await this.db.run('UPDATE members SET deleted = ? WHERE guild_id = ? AND user_id = ?;', deleted, guild_id, user_id);
 
     delete = async(guild_id: string, user_id: string) => await this.db.run('DELETE FROM members WHERE guild_id = ? AND user_id = ? AND reserved = 0;', guild_id, user_id);
