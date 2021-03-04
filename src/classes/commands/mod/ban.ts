@@ -1,8 +1,8 @@
 import { Message, MessageEmbed } from "discord.js";
 import { MemberComparer, MemberComparisonResult } from "../../behaviors/MemberComparer";
-import RepositoryFactory from "../../RepositoryFactory";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
 class BanCommand extends Command {    
     constructor(){
@@ -17,30 +17,27 @@ class BanCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const me = message.guild.me;
 
-        var repo = await RepositoryFactory.getInstanceAsync();
-        var guild = await repo.Guilds.select(message.guild.id);
-
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            // Error message
+            this.error('Cannot find target.', executionParameters);
             return;
         }
         const member = this.extractMemberMention(message, memberArg) || message.guild.members.cache.get(memberArg);
         var memberComparison = MemberComparer.CheckMemberComparison(message.member, member);
         if (memberComparison != MemberComparisonResult.ValidTarget) {
-            // Error message
-            console.log('failed member comparison:', memberComparison);
+            this.error(MemberComparer.FormatErrorForVerb(memberComparison, 'ban'), executionParameters);
             return;
         }
         if (member === undefined) {
+            this.error('Cannot find target.', executionParameters);
             return;
         }
         if (!member.bannable) {
-            // Error
+            this.error('That target is not bannable.', executionParameters);
             return;
         }
 
@@ -63,10 +60,9 @@ class BanCommand extends Command {
             .setTimestamp()
             .setColor(me.displayHexColor);
         
-        // Possible refactor for command redirect channel
-        message.channel.send(banEmbed);
+        this.send(banEmbed, executionParameters);
 
-        const staffLog = StaffLog.FromCommand(this, message);
+        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
         if (member !== undefined) {

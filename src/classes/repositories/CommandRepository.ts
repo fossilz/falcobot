@@ -21,6 +21,8 @@ class CommandRepository extends DbRepository {
                 permissionset_id INTEGER,
                 logAttempts INTEGER DEFAULT 0 NOT NULL,
                 fallbackCommand TEXT,
+                outputChannelId TEXT,
+                suppressCommand INTEGER DEFAULT 0 NOT NULL,
                 PRIMARY KEY(guild_id, command)
             );
         `);
@@ -42,6 +44,8 @@ class CommandRepository extends DbRepository {
     updatePermissionSet = async(guild_id: string, command: string, permissionset_id: number|null) => await this.db.run('UPDATE commands SET permissionset_id = ? WHERE guild_id = ? AND command = ?;', permissionset_id, guild_id, command);
     updateLogAttempts = async(guild_id: string, command: string, logAttempts: boolean) => await this.db.run('UPDATE commands SET logAttempts = ? WHERE guild_id = ? AND command = ?;', logAttempts, guild_id, command);
     updateFallbackCommand = async(guild_id: string, command: string, fallbackCommand: string|null) => await this.db.run('UPDATE commands SET fallbackCommand = ? WHERE guild_id = ? AND command = ?;', fallbackCommand, guild_id, command);
+    updateOutputChannelId = async(guild_id: string, command: string, outputChannelId: string|null) => await this.db.run('UPDATE commands SET outputChannelId = ? WHERE guild_id = ? AND command = ?;', outputChannelId, guild_id, command);
+    updateSuppressCommand = async(guild_id: string, command: string, suppressCommand: boolean) => await this.db.run('UPDATE commands SET suppressCommand = ? WHERE guild_id = ? AND command = ?;', suppressCommand, guild_id, command);
 
     delete = async(guild_id: string, command: string) => await this.db.run('DELETE FROM commands WHERE guild_id = ? AND command = ? AND reserved = 0;', guild_id, command);
     deleteGuild = async(guild_id: string) => await this.db.run('DELETE FROM commands WHERE guild_id = ?;', guild_id);

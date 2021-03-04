@@ -1,6 +1,8 @@
 import { Message } from "discord.js";
 import { Command } from "../Command";
 import RepositoryFactory from "../../RepositoryFactory";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
+import { StaffLog } from "../../behaviors/StaffLog";
 
 class SetChannelAutoRoleCommand extends Command {
     constructor(){
@@ -15,13 +17,13 @@ class SetChannelAutoRoleCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const repo = await RepositoryFactory.getInstanceAsync();
 
         const channel = this.extractChannelMention(message, args[0]) || message.guild.channels.cache.get(args[0]);
         if (channel === undefined) {
-            // Error
+            this.error('Cannot find channel', executionParameters);
             return;
         }
 
@@ -36,10 +38,12 @@ class SetChannelAutoRoleCommand extends Command {
         await repo.Channels.updateAutoRole(message.guild.id, channel.id, roleId);
 
         if (roleId !== null) {
-            message.channel.send(`Joining <#${channel.id}> will automatically assign <@&${roleId}>`);
+            this.send(`Joining <#${channel.id}> will automatically assign <@&${roleId}>`, executionParameters);
         } else {
-            message.channel.send(`Joining <#${channel.id}> will not automatically assign a role.`);
+            this.send(`Joining <#${channel.id}> will not automatically assign a role.`, executionParameters);
         }
+        
+        await StaffLog.FromCommand(this, message, executionParameters)?.send();
     }
 }
 

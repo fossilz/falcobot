@@ -1,9 +1,9 @@
-import { Guild, GuildMember, Message, MessageEmbed } from "discord.js";
-import { CommandHandler } from "../../behaviors/CommandHandler";
+import { Guild, GuildMember, Message, MessageEmbed, TextChannel } from "discord.js";
+import { CommandHandler, CommandExecutionParameters } from "../../behaviors/CommandHandler";
 import RepositoryFactory from "../../RepositoryFactory";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
-import CommandModel from "src/classes/dataModels/CommandModel";
+import CommandModel from "../../dataModels/CommandModel";
 import ReservedCommandList from '../';
 
 class CommandCommand extends Command {
@@ -19,7 +19,7 @@ class CommandCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const guild = message.guild;
 
@@ -27,19 +27,19 @@ class CommandCommand extends Command {
         const commands = await repo.Commands.selectAll(message.guild.id);
 
         if (args.length === 0) {
-            // Error message?
+            this.error('Please specify a command.', executionParameters);
             return;
         }
 
         const commandName = args.shift();
         if (commandName === undefined || commandName === '') {
-            // Error message?
+            this.error('Please specify a command.', executionParameters);
             return;
         }
 
         const cmdModel = await this.getAllowedCommand(commands.find(x=>x.command == commandName), guild, message.member);
         if (cmdModel === undefined){
-            // Error message : bad command or inaccessible
+            this.error('Unknown command.', executionParameters);
             return;
         }
 
@@ -57,38 +57,75 @@ class CommandCommand extends Command {
             embed.addField('Enabled', cmdModel.enabled ? 'Yes' : 'No', true);
             embed.addField('Log Usage', cmdModel.logUsage ? 'Yes' : 'No', true);
             embed.addField('Log Attempts', cmdModel.logAttempts ? 'Yes' : 'No', true);
+            embed.addField('Suppressed', cmdModel.suppressCommand ? 'Yes' : 'No', true);
+            const outputChannel = this.tryGetChannel(guild, cmdModel.outputChannelId);
+            if (outputChannel !== undefined){
+                embed.addField('Output redirected to', outputChannel);
+            }
 
-            message.channel.send(embed);
+            this.send(embed, executionParameters);
             return;
         }
 
         const settingArg = args.shift();
         if (settingArg === undefined) {
+            this.error('Unknown command argument.  Allowed arguments: enable, disable, suppress, log, logattempts, output clear|<channel ID/mention>', executionParameters);
             return;
         }
 
         switch(settingArg) {
             case 'enable':
                 await repo.Commands.updateEnabled(guild.id, cmdModel.command, true);
-                message.channel.send(`Command ${cmdModel.command} enabled.`);
+                this.send(`Command ${cmdModel.command} enabled.`, executionParameters);
                 break;
             case 'disable':
                 await repo.Commands.updateEnabled(guild.id, cmdModel.command, false);
-                message.channel.send(`Command ${cmdModel.command} disabled.`);
+                this.send(`Command ${cmdModel.command} disabled.`, executionParameters);
+                break;
+            case 'suppress':
+                const newSuppressSetting = !cmdModel.suppressCommand;
+                await repo.Commands.updateSuppressCommand(guild.id, cmdModel.command, newSuppressSetting);
+                this.send(`Command ${cmdModel.command} will ${newSuppressSetting ? '' : 'not '}be deleted from channel on use.`, executionParameters);
                 break;
             case 'log':
                 const newLogSetting = !cmdModel.logUsage;
                 await repo.Commands.updateLogUsage(guild.id, cmdModel.command, newLogSetting);
-                message.channel.send(`Command ${cmdModel.command} logging ${newLogSetting ? 'enabled' : 'disabled'}.`);
+                this.send(`Command ${cmdModel.command} logging ${newLogSetting ? 'enabled' : 'disabled'}.`, executionParameters);
                 break;
             case 'logattempts':
                 const newLogASetting = !cmdModel.logUsage;
                 await repo.Commands.updateLogAttempts(guild.id, cmdModel.command, newLogASetting);
-                message.channel.send(`Command ${cmdModel.command} attempt logging ${newLogASetting ? 'enabled' : 'disabled'}.`);
+                this.send(`Command ${cmdModel.command} attempt logging ${newLogASetting ? 'enabled' : 'disabled'}.`, executionParameters);
+                break;
+            case 'output':
+                const channelId = args.shift();
+                if (channelId === undefined || channelId === null) {
+                    this.error('Unknown output argument.  Expected format: command <commandname> output clear|<channel ID/mention>');
+                    break;
+                }
+                if (channelId.toLowerCase() === 'clear') {
+                    await repo.Commands.updateOutputChannelId(guild.id, cmdModel.command, null);
+                    this.send(`Command ${cmdModel.command} output channel removed.`, executionParameters);
+                    break;
+                }
+                const newOutputChannel = this.tryGetChannel(guild, channelId);
+                if (newOutputChannel === undefined) {
+                    this.error('Unknown output channel.  Expected format: command <commandname> output clear|<channel ID/mention>');
+                    break;
+                }
+                await repo.Commands.updateOutputChannelId(guild.id, cmdModel.command, newOutputChannel.id);
+                this.send(`Command ${cmdModel.command} output will be redirected to <#${newOutputChannel.id}>.`, executionParameters);
                 break;
         }
 
-        await StaffLog.FromCommand(this, message)?.send();
+        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+    }
+
+    private tryGetChannel = (guild: Guild, channelId: string|null) : TextChannel|undefined => {
+        if (channelId === null) return;
+        const channel = guild.channels.cache.get(channelId);
+        if (channel === undefined || !(channel instanceof TextChannel)) return;
+        return channel;
     }
 
     private getAllowedCommand = async (command: CommandModel | undefined, guild: Guild, member: GuildMember|null) : Promise<CommandModel|undefined> => {

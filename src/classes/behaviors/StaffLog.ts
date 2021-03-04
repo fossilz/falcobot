@@ -1,6 +1,7 @@
 import { Guild, Message, MessageEmbed, TextChannel } from "discord.js";
 import { Command } from "../commands/Command";
 import RepositoryFactory from "../RepositoryFactory";
+import { CommandExecutionParameters } from "./CommandHandler";
 
 export enum LogType {
     Command = 1,
@@ -41,13 +42,14 @@ export class StaffLog extends MessageEmbed {
         }
 
         // TODO: Insert code here to enable/disable logging on commands/events
-        console.log(`Logging ${this.logType} ${this.name}`);
+        //console.log(`Logging ${this.logType} ${this.name}`);
 
         logChannel.send(this);
     }
 
-    public static FromCommand = (command: Command, message: Message) : StaffLog | null => {
+    public static FromCommand = (command: Command, message: Message, executionParameters?: CommandExecutionParameters) : StaffLog | null => {
         if (message.guild === null) return null;
+        if (executionParameters != undefined && !executionParameters.logUsage) return null;
         return new StaffLog(message.guild, LogType.Command, command.name)
             .setAuthor(message.author.username, message.author.avatarURL() || undefined)
             .setDescription(`Used \`${command.name}\` command in <#${message.channel.id}>\n${message.content}`);

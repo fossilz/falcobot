@@ -1,4 +1,4 @@
-import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel } from "discord.js";
+import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, GuildChannel } from "discord.js";
 import ReservedCommandList from '../commands';
 import CommandModel from "../dataModels/CommandModel";
 import Repository from "../Repository";
@@ -30,13 +30,23 @@ export class CommandHandler {
             return;
         }
 
+        let deletedMessage: Message|undefined;
+        if (commandPermissions.command?.suppressCommand) {
+            try {
+                deletedMessage = await message.delete();
+            } catch (err) {
+                console.log('Error clearing command', err);
+            }
+        }
+
         // Run the command
         const reservedCommand = ReservedCommandList.find((c) => c.name === commandPermissions.command?.command);
         if (reservedCommand === undefined) {
             console.log('TODO: implement custom command execution:', commandPermissions.command);
             return;
         }
-        await reservedCommand.run(message, args);
+        const execParams = new CommandExecutionParameters(message, commandPermissions.command);
+        await reservedCommand.run(deletedMessage || message, args, execParams);
     }
 
     private static async GetPrefix(guild: Guild, repo: Repository) : Promise<string|null> {
@@ -63,7 +73,6 @@ export class CommandHandler {
 
     private static GetMessageArguments(message: Message, prefix: string): string[] {
         const msgCommandString = message.content.slice(prefix.length);
-        console.log('msg command string', msgCommandString);
         return msgCommandString.split(/ +/g);
     }
 
@@ -131,5 +140,34 @@ export class CommandExecutionPermissions {
         this.command = command;
         this.enabled = enabled || command?.enabled || false;
         this.canExecute = canExecute || false;
+    }
+}
+
+export class CommandExecutionParameters {
+    outputChannel: TextChannel | undefined;
+    deleteCommand: boolean;
+    logUsage: boolean;
+
+    constructor(message: Message, command: CommandModel | null) {
+        this.outputChannel = message.channel instanceof TextChannel ? message.channel : undefined;
+        this.deleteCommand = command?.suppressCommand || false;
+        this.logUsage = command === null || command.logUsage;
+        if (message.guild !== null) {
+            this.checkOverrideChannel(message.guild, command);
+        }
+    }
+
+    private checkOverrideChannel = (guild: Guild, command: CommandModel | null) : void => {
+        if (command === null || command?.outputChannelId === null || guild.me === null) return;
+        const channel = guild.channels.cache.get(command.outputChannelId);
+        if (
+            channel === undefined || 
+            !(channel instanceof TextChannel) || 
+            !channel.viewable || 
+            !channel.permissionsFor(guild.me)?.has(['SEND_MESSAGES', 'EMBED_LINKS'])
+        ){
+            return;
+        }
+        this.outputChannel = channel;
     }
 }

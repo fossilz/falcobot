@@ -1,6 +1,7 @@
 import { Message, MessageEmbed } from "discord.js";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
 class MooCommand extends Command {
     constructor(){
@@ -15,7 +16,7 @@ class MooCommand extends Command {
         });
     }
 
-    run = async (message: Message, _: string[]) : Promise<void> => {
+    run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
 
         const embed = new MessageEmbed()
@@ -24,12 +25,13 @@ class MooCommand extends Command {
             .setFooter("Mooooo")
             .setTimestamp()
             .setColor(message.member.displayHexColor);
-        const mooMessage = await message.channel.send(embed);
+        const mooMessage = await this.send(embed, executionParameters);
+        if (mooMessage === undefined) return;
         await mooMessage.react("🇲");
-        await mooMessage.react("🇴");
         await mooMessage.react("🅾️");
+        await mooMessage.react("🇴");
 
-        await StaffLog.FromCommand(this, message)?.send();
+        await StaffLog.FromCommand(this, message, executionParameters)?.send();
     }
 }
 

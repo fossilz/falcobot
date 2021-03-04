@@ -1,4 +1,5 @@
-import { GuildChannel, GuildMember, Message, PermissionString, Role } from 'discord.js';
+import { APIMessageContentResolvable, GuildChannel, GuildMember, Message, MessageAdditions, PermissionString, Role } from 'discord.js';
+import { CommandExecutionParameters } from '../behaviors/CommandHandler';
 
 export interface ICommandSettings {
     name: string;
@@ -9,6 +10,7 @@ export interface ICommandSettings {
     defaultUserPermissions?: PermissionString[];
     examples?: string[];
     logByDefault?: boolean;
+    suppressByDefault?: boolean;
 }
 
 export abstract class Command {
@@ -20,6 +22,7 @@ export abstract class Command {
     public defaultUserPermissions: PermissionString[];
     public examples: string[];
     public logByDefault: boolean;
+    public suppressByDefault: boolean;
 
     constructor(options: ICommandSettings) {
         this.name = options.name;
@@ -30,11 +33,23 @@ export abstract class Command {
         this.defaultUserPermissions = options.defaultUserPermissions || [];
         this.examples = options.examples || [];
         this.logByDefault = options.logByDefault ?? true;
+        this.suppressByDefault = options.suppressByDefault ?? false;
     }
 
     // @ts-ignore: abstract run definition
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         throw new Error(`The ${this.name} command has no run() method`);
+    }
+
+    send = async (content: APIMessageContentResolvable | MessageAdditions, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
+        if (executionParameters === undefined || executionParameters.outputChannel === undefined) return;
+        return await executionParameters.outputChannel.send(content);
+    }
+
+    error = async (content: string | undefined, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
+        if (executionParameters === undefined || executionParameters.outputChannel === undefined) return;
+        if (content === undefined) return;
+        return await executionParameters.outputChannel.send(`ERROR: ${content}`);
     }
 
     protected extractChannelMention = (message: Message, mention: string) : GuildChannel | undefined => {

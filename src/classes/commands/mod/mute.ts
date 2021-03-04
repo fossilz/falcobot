@@ -5,6 +5,7 @@ import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { TimeParser } from "../../behaviors/TimeParser";
 import { MemberRoleHelper } from '../../behaviors/MemberRoleHelper';
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
 class MuteCommand extends Command {
     constructor(){
@@ -19,7 +20,7 @@ class MuteCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const me = message.guild.me;
 
@@ -27,33 +28,33 @@ class MuteCommand extends Command {
         var guild = await repo.Guilds.select(message.guild.id);
 
         if (guild === undefined || guild.muteRoleID === null) {
-            // Error message
+            this.error('Mute role is not properly configured.', executionParameters);
             return;
         }
         var tryMuteRole = message.guild.roles.cache.get(guild.muteRoleID);
         if (tryMuteRole === undefined) {
-            // Error message
+            this.error('Mute role is not properly configured.', executionParameters);
             return;
         }
         const muteRole = tryMuteRole;
         
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            // Error message
+            this.error('Cannot find target.', executionParameters);
             return;
         }
         const member = this.extractMemberMention(message, memberArg) || message.guild.members.cache.get(memberArg);
         var memberComparison = MemberComparer.CheckMemberComparison(message.member, member);
         if (memberComparison != MemberComparisonResult.ValidTarget) {
-            // Error message
-            console.log('failed member comparison:', memberComparison);
+            this.error(MemberComparer.FormatErrorForVerb(memberComparison, 'mute'), executionParameters);
             return;
         }
         if (member === undefined) {
+            this.error('Cannot find target.', executionParameters);
             return;
         }
         if (member.roles.cache.get(guild.muteRoleID)){
-            // Error : already muted
+            this.send('Target is already muted.', executionParameters);
             return;
         }
 
@@ -67,7 +68,7 @@ class MuteCommand extends Command {
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
         if (!await MemberRoleHelper.TryAssignRole(member, muteRole)) {
-            // Error
+            this.error('Error attempting to mute target.', executionParameters);
             return;
         }
 
@@ -89,13 +90,12 @@ class MuteCommand extends Command {
             .setTimestamp()
             .setColor(me.displayHexColor);
         
-        // Possible refactor for command redirect channel
-        message.channel.send(muteEmbed);
+        this.send(muteEmbed, executionParameters);
 
         if (timeSpan !== null && timeSpan.totalMilliseconds > 0) {
             message.client.setTimeout(async () => {
                 if (!await MemberRoleHelper.TryRemoveRole(member, muteRole)) {
-                    // Error
+                    this.error('Error attempting to unmute target.', executionParameters);
                     return;
                 }
                 const unmuteEmbed = new MessageEmbed()
@@ -103,12 +103,12 @@ class MuteCommand extends Command {
                     .setDescription(`${member} has been unmuted.`)
                     .setTimestamp()
                     .setColor(me.displayHexColor);
-                message.channel.send(unmuteEmbed);
+                this.send(unmuteEmbed, executionParameters);
                 
             }, timeSpan.totalMilliseconds);
         }
 
-        const staffLog = StaffLog.FromCommand(this, message);
+        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
         if (member !== undefined){

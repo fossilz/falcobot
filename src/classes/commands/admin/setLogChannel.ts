@@ -1,6 +1,7 @@
 import { Message } from "discord.js";
 import { Command } from "../Command";
 import RepositoryFactory from "../../RepositoryFactory";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
 class SetLogChannelCommand extends Command {
     constructor(){
@@ -16,7 +17,7 @@ class SetLogChannelCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const repo = await RepositoryFactory.getInstanceAsync();
 
@@ -25,9 +26,9 @@ class SetLogChannelCommand extends Command {
         await repo.Guilds.updateStaffLogChannel(message.guild.id, channel?.id || null);
 
         if (channel) {
-            message.channel.send(`Staff Log channel set to <#${channel.id}>`);
+            this.send(`Staff Log channel set to <#${channel.id}>`, executionParameters);
         } else {
-            message.channel.send(`Staff Log channel cleared (logging disabled)`);
+            this.send(`Staff Log channel cleared (logging disabled)`, executionParameters);
         }
     }
 }

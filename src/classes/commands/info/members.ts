@@ -1,4 +1,5 @@
 import { Message, MessageEmbed } from "discord.js";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 
@@ -14,7 +15,7 @@ class MembersCommand extends Command {
         });
     }
 
-    run = async (message: Message, _: string[]) : Promise<void> => {
+    run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         
         const members = message.guild.members.cache.array();
@@ -31,9 +32,9 @@ class MembersCommand extends Command {
             .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(message.guild.me.displayHexColor);
-        message.channel.send(embed);
+        this.send(embed, executionParameters);
 
-        await StaffLog.FromCommand(this, message)?.send();
+        await StaffLog.FromCommand(this, message, executionParameters)?.send();
     }
 }
 

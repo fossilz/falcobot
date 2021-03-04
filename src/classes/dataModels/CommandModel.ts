@@ -9,6 +9,8 @@ class CommandModel {
     public permissionset_id: number|null;
     public logAttempts: boolean; // Log attempts to use this command that fail due to insufficient permissions (if logging enabled)
     public fallbackCommand: string|null; // (Optional) name of a command to use, instead of this one, if insufficient permissions
+    public outputChannelId: string|null; // (Optional) ID of channel to redirect command output to
+    public suppressCommand: boolean; // Delete the triggering command message
 
     constructor(guild_id: string, command?: Command){
         this.guild_id = guild_id;
@@ -18,14 +20,17 @@ class CommandModel {
             this.enabled = true;
             this.logUsage = command.logByDefault;
             this.logAttempts = false;
+            this.suppressCommand = command.suppressByDefault;
         } else {
             this.reserved = false;
             this.enabled = false;
             this.logUsage = false;
             this.logAttempts = false;
+            this.suppressCommand = false;
         }
         this.permissionset_id = null;
         this.fallbackCommand = null;
+        this.outputChannelId = null;
     }
 }
 

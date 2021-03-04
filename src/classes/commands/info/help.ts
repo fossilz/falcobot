@@ -1,8 +1,8 @@
 import { Guild, GuildMember, Message, MessageEmbed } from "discord.js";
-import { CommandHandler } from "../../behaviors/CommandHandler";
+import { CommandExecutionParameters, CommandHandler } from "../../behaviors/CommandHandler";
 import RepositoryFactory from "../../RepositoryFactory";
 import { Command } from "../Command";
-import CommandModel from "src/classes/dataModels/CommandModel";
+import CommandModel from "../../dataModels/CommandModel";
 import ReservedCommandList from '../';
 import { asyncForEach } from "../../utils/functions";
 
@@ -19,7 +19,7 @@ class HelpCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const guild = message.guild;
 
@@ -63,7 +63,7 @@ class HelpCommand extends Command {
             });
         }
 
-        message.channel.send(embed);
+        this.send(embed, executionParameters);
     }
 
     private getCommandHelpers = async (commandName: string|undefined, commands: CommandModel[], guild: Guild, member: GuildMember|null) : Promise<CommandCategory[]> => {

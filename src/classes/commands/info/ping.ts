@@ -1,6 +1,7 @@
 import { Message, MessageEmbed } from "discord.js";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
 class PingCommand extends Command {
     constructor(){
@@ -14,13 +15,16 @@ class PingCommand extends Command {
         });
     }
 
-    run = async (message: Message, _: string[]) : Promise<void> => {
+    run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        
+
         const embed = new MessageEmbed()
             .setDescription('`Pinging...`')
             .setColor(message.guild.me.displayHexColor);  
-        const msg = await message.channel.send(embed);
+        const msg = await this.send(embed, executionParameters);
+        if (msg === undefined) {
+            return;
+        }
         const timestamp = (message.editedTimestamp) ? message.editedTimestamp : message.createdTimestamp; // Check if edited
         const latency = `\`\`\`ini\n[ ${Math.floor(msg.createdTimestamp - timestamp)}ms ]\`\`\``;
         const apiLatency = `\`\`\`ini\n[ ${Math.round(message.client.ws.ping)}ms ]\`\`\``;
@@ -33,7 +37,7 @@ class PingCommand extends Command {
             .setTimestamp();
         msg.edit(embed);
 
-        await StaffLog.FromCommand(this, message)?.send();
+        await StaffLog.FromCommand(this, message, executionParameters)?.send();
     }
 }
 

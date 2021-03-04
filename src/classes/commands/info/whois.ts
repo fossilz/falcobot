@@ -4,6 +4,7 @@ import { MemberFinder } from "../../behaviors/MemberFinder";
 import { Command } from "../Command";
 import PermissionList from '../../utils/permissions';
 import RepositoryFactory from "../../RepositoryFactory";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
 class WhoisCommand extends Command {
     constructor(){
@@ -18,7 +19,7 @@ class WhoisCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const guild = message.guild;
         const repo = await RepositoryFactory.getInstanceAsync();
@@ -29,7 +30,7 @@ class WhoisCommand extends Command {
         }
         const memberMatches = await MemberFinder.FindMember(guild, memberId);
         if (memberMatches.length === 0){
-            // Error message
+            this.error('No member found.');
             return;
         }
 
@@ -40,7 +41,7 @@ class WhoisCommand extends Command {
                 .setTitle(`Members matching: ${args[0]} [${memberMatches.length}]`)
                 .setTimestamp()
                 .setDescription(firstTenMembers.map(x => MemberFinder.FormatMember(x)).join('\n') + ((memberMatches.length > 10) ? '\n... more ...' : ''));
-            message.channel.send(matchEmbed);
+            this.send(matchEmbed, executionParameters);
             return;
         }
         const gMember = memberMatches[0];
@@ -87,9 +88,9 @@ class WhoisCommand extends Command {
         if (permArray.length > 0) {
             embed.addField('Notable Permissions', permArray.join(', '))
         }
-        message.channel.send(embed);
+        this.send(embed, executionParameters);
 
-        await StaffLog.FromCommand(this, message)?.send();
+        await StaffLog.FromCommand(this, message, executionParameters)?.send();
     }
 }
 

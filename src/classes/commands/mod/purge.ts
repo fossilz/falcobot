@@ -1,6 +1,7 @@
 import { Collection, DMChannel, GuildMember, Message, TextChannel } from "discord.js";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
 class PurgeCommand extends Command {
     constructor(){
@@ -15,7 +16,7 @@ class PurgeCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null) return;
         let channel = this.extractChannelMention(message, args[0]) || message.guild.channels.cache.get(args[0]);
         if (channel !== undefined) {
@@ -25,11 +26,12 @@ class PurgeCommand extends Command {
             channel = message.channel;
         }
         if (channel === null || channel === undefined || !(channel instanceof TextChannel)) {
+            this.error('Invalid channel.', executionParameters);
             return;
         }
 
         if (channel.type !== "text" || !channel.viewable) {
-            // send error message
+            this.error('Invalid channel.', executionParameters);
             return;
         }
 
@@ -40,7 +42,7 @@ class PurgeCommand extends Command {
 
         const amount = parseInt(args[0]);
         if (isNaN(amount) === true || !amount || amount < 0 || amount > 100) {
-            // send error message
+            this.error('Please specify a purge count (1-100)', executionParameters);
             return;
         }
 
@@ -49,15 +51,23 @@ class PurgeCommand extends Command {
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
         if (!this.canDelete(channel)) {
-            // send error message
+            this.error('Cannot delete messages in this channel', executionParameters);
             return;
         }
 
-        await message.delete();
+        // This check is required so that it doesn't interfere with the configurable suppress option
+        if (message.deletable && !message.deleted) {
+            try {
+                await message.delete();
+            } catch (err) {
+                // just swallow this... obviously the source message has been deleted but we're not
+                // reflecting that locally yet
+            }
+        }
 
         const deletedMessageCount = await PurgeCommand.bulkDelete(channel, member, amount);
         
-        const staffLog = StaffLog.FromCommand(this, message);
+        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
         staffLog.addField('Channel', channel, true);

@@ -37,4 +37,19 @@ export class MemberComparer {
         }
         return MemberComparisonResult.ValidTarget;
     }
+
+    public static FormatErrorForVerb = (result: MemberComparisonResult, verb: string) : string|undefined => {
+        switch(result){
+            case MemberComparisonResult.ValidTarget:
+                return;
+            case MemberComparisonResult.InvalidTarget:
+                return 'Invalid target.';
+            case MemberComparisonResult.CannotTargetBot:
+                return `Cannot ${verb} bot.`;
+            case MemberComparisonResult.CannotTargetSelf:
+                return `Cannot ${verb} yourself.`;
+            case MemberComparisonResult.TargetRankedTooHigh:
+                return `You have insufficient rank to ${verb} that target.`;
+        }
+    }
 }

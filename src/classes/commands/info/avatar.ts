@@ -1,4 +1,5 @@
 import { Message, MessageEmbed } from "discord.js";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 
@@ -15,7 +16,7 @@ class AvatarCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[]) : Promise<void> => {
+    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const member = this.extractMemberMention(message, args[0]) || message.guild.members.cache.get(args[0]) || message.member;
         
@@ -25,9 +26,9 @@ class AvatarCommand extends Command {
             .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(member.displayHexColor);
-        message.channel.send(embed);
+        this.send(embed, executionParameters);
 
-        await StaffLog.FromCommand(this, message)?.send();
+        await StaffLog.FromCommand(this, message, executionParameters)?.send();
     }
 }
 
