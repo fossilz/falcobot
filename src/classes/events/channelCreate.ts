@@ -10,6 +10,10 @@ const handler: IEventHandler = {
     handler: async (_: DiscordClient, channel: TextChannel|VoiceChannel|CategoryChannel) => {
         const repo = await RepositoryFactory.getInstanceAsync();
 
+        if (!(channel instanceof TextChannel || channel instanceof VoiceChannel || channel instanceof CategoryChannel)){
+            return;
+        }
+
         const c = new ChannelModel(channel);
         await repo.Channels.insert(c);
 

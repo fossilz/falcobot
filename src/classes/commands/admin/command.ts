@@ -100,7 +100,7 @@ class CommandCommand extends Command {
             case 'output':
                 const channelId = args.shift();
                 if (channelId === undefined || channelId === null) {
-                    this.error('Unknown output argument.  Expected format: command <commandname> output clear|<channel ID/mention>');
+                    this.error('Unknown output argument.  Expected format: command <commandname> output clear|<channel ID/mention>', executionParameters);
                     break;
                 }
                 if (channelId.toLowerCase() === 'clear') {
@@ -110,7 +110,7 @@ class CommandCommand extends Command {
                 }
                 const newOutputChannel = this.tryGetChannel(guild, channelId);
                 if (newOutputChannel === undefined) {
-                    this.error('Unknown output channel.  Expected format: command <commandname> output clear|<channel ID/mention>');
+                    this.error('Unknown output channel.  Expected format: command <commandname> output clear|<channel ID/mention>', executionParameters);
                     break;
                 }
                 await repo.Commands.updateOutputChannelId(guild.id, cmdModel.command, newOutputChannel.id);
@@ -123,7 +123,8 @@ class CommandCommand extends Command {
 
     private tryGetChannel = (guild: Guild, channelId: string|null) : TextChannel|undefined => {
         if (channelId === null) return;
-        const channel = guild.channels.cache.get(channelId);
+        const cid = this.extractChannelIDFromMention(channelId) || channelId;
+        const channel = guild.channels.cache.get(cid);
         if (channel === undefined || !(channel instanceof TextChannel)) return;
         return channel;
     }

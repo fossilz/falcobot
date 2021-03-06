@@ -3,6 +3,8 @@ import { MemberComparer, MemberComparisonResult } from "../../behaviors/MemberCo
 import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
+import { MemberNoteHelper } from "../../behaviors/MemberNoteHelper";
+import { NoteType } from "../../dataModels/MemberNoteModel";
 
 class KickCommand extends Command {    
     constructor(){
@@ -41,6 +43,9 @@ class KickCommand extends Command {
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
         await member.kick(reason);
+        
+        // We don't need the summary from this, they're being kicked
+        await MemberNoteHelper.AddUserNote(member.guild.id, member.user.id, NoteType.Kick, reason, message.member);
 
         const kickEmbed = new MessageEmbed()
             .setTitle('Kick Member')

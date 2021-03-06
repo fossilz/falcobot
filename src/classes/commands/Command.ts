@@ -52,16 +52,22 @@ export abstract class Command {
         return await executionParameters.outputChannel.send(`ERROR: ${content}`);
     }
 
-    protected extractChannelMention = (message: Message, mention: string) : GuildChannel | undefined => {
-        if (message === null || message.guild === null || mention === undefined || mention === null) return;
+    protected extractChannelIDFromMention = (mention: string) : string | undefined => {
+        if (mention === undefined || mention === null) return;
         const matches = mention.match(/^<#(\d+)>$/);
-        if (matches == null) return;
-        const id = matches[1];
+        if (matches === null) return;
+        return matches[1];
+    }
+
+    protected extractChannelMention = (message: Message, mention: string) : GuildChannel | undefined => {
+        if (message === null || message.guild === null) return;
+        const id = this.extractChannelIDFromMention(mention);
+        if (id === undefined) return;
         return message.guild.channels.cache.get(id);
     }
 
-    protected extractMemberIDFromMention = (message: Message, mention: string) : string | undefined => {
-        if (message === null || message.guild === null || mention === undefined || mention === null) return;
+    protected extractMemberIDFromMention = (mention: string) : string | undefined => {
+        if (mention === undefined || mention === null) return;
         const matches = mention.match(/^<@!?(\d+)>$/);
         if (matches === null) return;
         return matches[1];
@@ -69,7 +75,7 @@ export abstract class Command {
 
     protected extractMemberMention = (message: Message, mention: string) : GuildMember | undefined => {
         if (message === null || message.guild === null) return;
-        const id = this.extractMemberIDFromMention(message, mention);
+        const id = this.extractMemberIDFromMention(mention);
         if (id === undefined) return;
         return message.guild.members.cache.get(id);
     }

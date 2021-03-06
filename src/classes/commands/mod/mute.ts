@@ -6,6 +6,8 @@ import { Command } from "../Command";
 import { TimeParser } from "../../behaviors/TimeParser";
 import { MemberRoleHelper } from '../../behaviors/MemberRoleHelper';
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
+import { MemberNoteHelper } from "../../behaviors/MemberNoteHelper";
+import { NoteType } from "../../dataModels/MemberNoteModel";
 
 class MuteCommand extends Command {
     constructor(){
@@ -71,6 +73,8 @@ class MuteCommand extends Command {
             this.error('Error attempting to mute target.', executionParameters);
             return;
         }
+        
+        const summary = await MemberNoteHelper.AddUserNote(member.guild.id, member.user.id, NoteType.Mute, reason, message.member);
 
         const description = (timeSpan?.totalMilliseconds || 0) > 0 ? `${member} has now been muted for **${timeSpan?.toString()}**.` : `${member} has now been muted`;
 
@@ -84,6 +88,15 @@ class MuteCommand extends Command {
         }
         if (reason !== '`None`') {
             muteEmbed.addField('Reason', reason);
+        }
+        if (summary.totalNotes() > 1) {
+            const noteList: string[] = [];
+            if (summary.noteCount > 0) noteList.push(`${summary.noteCount} note${summary.noteCount === 1 ? '' : 's'}`);
+            if (summary.warnCount > 0) noteList.push(`${summary.warnCount} warning${summary.warnCount === 1 ? '' : 's'}`);
+            if (summary.muteCount > 1) noteList.push(`${summary.muteCount - 1} mute${summary.muteCount === 2 ? '' : 's'}`);
+            if (summary.kickCount > 0) noteList.push(`${summary.kickCount} kick${summary.kickCount === 1 ? '' : 's'}`);
+            if (summary.banCount > 0) noteList.push(`${summary.banCount} ban${summary.banCount === 1 ? '' : 's'}`);
+            muteEmbed.addField('Previous notes', noteList.join('\n'));
         }
         muteEmbed            
             .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
