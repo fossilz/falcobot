@@ -1,4 +1,5 @@
 import { DMChannel, GuildMember, NewsChannel, TextChannel } from "discord.js";
+import NodeCache from "node-cache";
 import { PermissionSetItemModel } from "../dataModels/PermissionSetItemModel";
 import PermissionSetModel from "../dataModels/PermissionSetModel";
 import RepositoryFactory from "../RepositoryFactory";
@@ -22,6 +23,9 @@ export class PermissionCheckResult {
 }
 
 export class PermissionSetHandler {
+    private static _cache: NodeCache;
+    private static _semaphore = false;
+
     public static async CheckPermissions(guild_id: string, permissionset_id: number|null, member?: GuildMember|null, channel?: TextChannel | DMChannel | NewsChannel) : Promise<PermissionCheckResult> {
         if (channel !== undefined && (channel instanceof DMChannel || channel instanceof NewsChannel)) {
             return new PermissionCheckResult(PermissionCheckResultType.FailChannelCheck);
@@ -30,12 +34,11 @@ export class PermissionSetHandler {
         if (permissionset_id === null) {
             return new PermissionCheckResult(PermissionCheckResultType.NoPermissions);
         }
-        const repo = await RepositoryFactory.getInstanceAsync();
-        const pSet = await repo.PermissionSets.select(guild_id, permissionset_id);
+        const pSet = await PermissionSetHandler.GetPermissionSetAsync(guild_id, permissionset_id);
         if (pSet === undefined) {
             return new PermissionCheckResult(PermissionCheckResultType.NoPermissions);
         }
-        const setItems = await repo.PermissionSets.selectItems(guild_id, permissionset_id) || <PermissionSetItemModel[]>[];
+        const setItems = await PermissionSetHandler.GetPermissionSetItemsAsync(guild_id, permissionset_id) || <PermissionSetItemModel[]>[];
 
         let resultCheck = PermissionCheckResultType.Pass;
 
@@ -101,5 +104,53 @@ export class PermissionSetHandler {
             return PermissionCheckResultType.FailChannelCheck;
         }
         return PermissionCheckResultType.Pass;
+    }
+
+    private static PSetCacheKey = (guild_id: string, permissionset_id: number) : string => {
+        return `PermissionSet_${guild_id}_${permissionset_id}`;
+    }
+    
+    private static PSetItemsCacheKey = (guild_id: string, permissionset_id: number) : string => {
+        return `PermissionSetItems_${guild_id}_${permissionset_id}`;
+    }
+
+    public static ClearCache = (guild_id: string, permissionset_id: number) => {
+        const cacheKey = PermissionSetHandler.PSetCacheKey(guild_id, permissionset_id);
+        const itemCacheKey = PermissionSetHandler.PSetItemsCacheKey(guild_id, permissionset_id);
+        const cache = PermissionSetHandler.GetCache();
+        cache.del(cacheKey);
+        cache.del(itemCacheKey);
+    }
+
+    private static GetPermissionSetAsync = async (guild_id: string, permissionset_id: number) : Promise<PermissionSetModel|undefined> => {
+        const cache = PermissionSetHandler.GetCache();
+        const cacheKey = PermissionSetHandler.PSetCacheKey(guild_id, permissionset_id);
+        if (!cache.has(cacheKey)) {
+            const repo = await RepositoryFactory.getInstanceAsync();
+            const pSet = await repo.PermissionSets.select(guild_id, permissionset_id);
+            cache.set(cacheKey, pSet, 300); // Let's try a TTL of 5 minutes to start
+            return pSet;
+        }
+        return cache.get<PermissionSetModel|undefined>(cacheKey);
+    }
+
+    private static GetPermissionSetItemsAsync = async (guild_id: string, permissionset_id: number) : Promise<PermissionSetItemModel[]|undefined> => {
+        const cache = PermissionSetHandler.GetCache();
+        const cacheKey = PermissionSetHandler.PSetItemsCacheKey(guild_id, permissionset_id);
+        if (!cache.has(cacheKey)) {
+            const repo = await RepositoryFactory.getInstanceAsync();
+            const setItems = await repo.PermissionSets.selectItems(guild_id, permissionset_id) || <PermissionSetItemModel[]>[];
+            cache.set(cacheKey, setItems, 300); // Let's try a TTL of 5 minutes to start
+            return setItems;
+        }
+        return cache.get<PermissionSetItemModel[]>(cacheKey);
+    }
+
+    private static GetCache() {
+        if (!PermissionSetHandler._cache && !PermissionSetHandler._semaphore) {
+            PermissionSetHandler._semaphore = true;
+            PermissionSetHandler._cache = new NodeCache();
+        }
+        return PermissionSetHandler._cache;
     }
 }

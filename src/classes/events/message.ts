@@ -1,4 +1,5 @@
 import { Message } from "discord.js";
+import AutoResponderHandler from "../behaviors/AutoResponderHandler";
 import { CommandHandler } from "../behaviors/CommandHandler";
 import DiscordClient from "../DiscordClient";
 import IEventHandler from "./IEventHandler"
@@ -10,6 +11,8 @@ const handler: IEventHandler = {
 
         // Run a command, if applicable
         await CommandHandler.RunCommand(message);
+        // Run any autoresponders
+        await AutoResponderHandler.AutoRespondAsync(message);
     }
 };
 

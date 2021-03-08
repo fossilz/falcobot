@@ -9,6 +9,7 @@ import PermissionSetRepository from './repositories/PermissionSetRepository';
 import CommandRepository from './repositories/CommandRepository';
 import MemberRepository from './repositories/MemberRepository';
 import MemberNoteRepository from './repositories/MemberNoteRepository';
+import AutoResponderRepository from './repositories/AutoResponderRepository';
 
 class Repository {
     private db: Database<sqlite3.Database, sqlite3.Statement>;
@@ -20,6 +21,7 @@ class Repository {
     public Commands: CommandRepository;
     public Members: MemberRepository;
     public MemberNotes: MemberNoteRepository;
+    public AutoResponders: AutoResponderRepository;
 
     async initAsync(){
         this.db = await open({
@@ -34,6 +36,7 @@ class Repository {
         this.Commands = await this.initializeRepoAsync(CommandRepository);
         this.Members = await this.initializeRepoAsync(MemberRepository);
         this.MemberNotes = await this.initializeRepoAsync(MemberNoteRepository);
+        this.AutoResponders = await this.initializeRepoAsync(AutoResponderRepository);
     }
 
     private async initializeRepoAsync<T extends DbRepository>(c: { new(db: Database<sqlite3.Database, sqlite3.Statement>): T }): Promise<T> {
