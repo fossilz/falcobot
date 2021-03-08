@@ -1,5 +1,7 @@
 import { GuildMember } from "discord.js";
+import { MemberNoteHelper } from "../behaviors/MemberNoteHelper";
 import MemberModel from "../dataModels/MemberModel";
+import { NoteType } from "../dataModels/MemberNoteModel";
 import DiscordClient from "../DiscordClient";
 import RepositoryFactory from "../RepositoryFactory";
 import IEventHandler from "./IEventHandler"
@@ -10,6 +12,8 @@ const handler: IEventHandler = {
         const repo = await RepositoryFactory.getInstanceAsync();
         const memberModel = new MemberModel(member);
         await repo.Members.insert(memberModel);
+
+        await MemberNoteHelper.AddUserNote(member.guild.id, member.user.id, NoteType.Note, `Member ${member.user.username}#${member.user.discriminator} joined.`);
     }
 };
 
