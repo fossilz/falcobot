@@ -11,6 +11,7 @@ class SuperPingCommand extends Command {
             usage: 'superping <user mention/id> [message]',
             description: 'Pings the mentioned user on every channel with optional message',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+            defaultUserPermissions: ['ADMINISTRATOR'],
             examples: ['superping @flamgo So many pings']
         });
     }

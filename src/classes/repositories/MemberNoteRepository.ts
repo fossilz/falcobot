@@ -13,7 +13,7 @@ export default class MemberNoteRepository extends DbRepository {
     private initAsync = async () => {
         await this.db.exec(`
             CREATE TABLE IF NOT EXISTS memberNotes (
-                guild_id TEXT,
+                guild_id TEXT NOT NULL,
                 note_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id TEXT NOT NULL,
                 author_id TEXT,

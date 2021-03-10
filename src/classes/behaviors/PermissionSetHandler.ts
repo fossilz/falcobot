@@ -60,6 +60,10 @@ export class PermissionSetHandler {
         return result;
     }
 
+    public static Has(result: PermissionCheckResult, bit: PermissionCheckResultType){
+        return (result.result & bit) == bit;
+    }
+
     private static async CheckRolePermissions(member: GuildMember|null|undefined, pSet: PermissionSetModel, setItems: PermissionSetItemModel[]) : Promise<PermissionCheckResultType> {
         if (member === null || member == undefined){
             // No member, don't check this

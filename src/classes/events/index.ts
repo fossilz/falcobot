@@ -13,6 +13,7 @@ import guildMemberRemove from './guildMemberRemove';
 import guildMemberAdd from './guildMemberAdd';
 import guildMemberUpdate from './guildMemberUpdate';
 import messageReactionAdd from './messageReactionAdd';
+import messageReactionRemove from './messageReactionRemove';
 
 export default [
     message,
@@ -29,5 +30,6 @@ export default [
     guildMemberRemove,
     guildMemberAdd,
     guildMemberUpdate,
-    messageReactionAdd
+    messageReactionAdd,
+    messageReactionRemove
 ];

@@ -1,4 +1,4 @@
-import { APIMessageContentResolvable, GuildChannel, GuildMember, Message, MessageAdditions, PermissionString, Role } from 'discord.js';
+import { APIMessageContentResolvable, Guild, GuildChannel, GuildMember, Message, MessageAdditions, PermissionString, Role } from 'discord.js';
 import { CommandExecutionParameters } from '../behaviors/CommandHandler';
 
 export interface ICommandSettings {
@@ -86,5 +86,22 @@ export abstract class Command {
         if (matches === null) return;
         const id = matches[1];
         return message.guild.roles.cache.get(id);
+    }
+
+    protected extractEmoji = (guild: Guild, mention: string) : string | undefined => {
+        if (mention === undefined || mention === null) return;
+        const emoteRegex = /<:.+:(\d+)>/gm
+        const animatedEmoteRegex = /<a:.+:(\d+)>/gm
+        const emoteMatch = emoteRegex.exec(mention);
+        if (emoteMatch !== null) {
+            const e = guild.emojis.cache.get(emoteMatch[1]);
+            return e?.id;
+        }
+        const animationMatch = animatedEmoteRegex.exec(mention);
+        if (animationMatch !== null) {
+            const a = guild.emojis.cache.get(animationMatch[1]);
+            return a?.id;
+        }
+        return mention;
     }
 }

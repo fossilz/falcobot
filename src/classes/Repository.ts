@@ -10,6 +10,8 @@ import CommandRepository from './repositories/CommandRepository';
 import MemberRepository from './repositories/MemberRepository';
 import MemberNoteRepository from './repositories/MemberNoteRepository';
 import AutoResponderRepository from './repositories/AutoResponderRepository';
+import ReactionRoleRepository from './repositories/ReactionRoleRepository';
+import MemberReactionRoleRepository from './repositories/MemberReactionRoleRepository';
 
 class Repository {
     private db: Database<sqlite3.Database, sqlite3.Statement>;
@@ -22,11 +24,13 @@ class Repository {
     public Members: MemberRepository;
     public MemberNotes: MemberNoteRepository;
     public AutoResponders: AutoResponderRepository;
+    public ReactionRoles: ReactionRoleRepository;
+    public MemberReactionRoles: MemberReactionRoleRepository;
 
     async initAsync(){
         this.db = await open({
             filename: SQLITE_FILENAME,
-            driver: sqlite3.Database
+            driver: sqlite3.cached.Database
         });
 
         this.Guilds = await this.initializeRepoAsync(GuildRepository);
@@ -37,6 +41,8 @@ class Repository {
         this.Members = await this.initializeRepoAsync(MemberRepository);
         this.MemberNotes = await this.initializeRepoAsync(MemberNoteRepository);
         this.AutoResponders = await this.initializeRepoAsync(AutoResponderRepository);
+        this.ReactionRoles = await this.initializeRepoAsync(ReactionRoleRepository);
+        this.MemberReactionRoles = await this.initializeRepoAsync(MemberReactionRoleRepository);
     }
 
     private async initializeRepoAsync<T extends DbRepository>(c: { new(db: Database<sqlite3.Database, sqlite3.Statement>): T }): Promise<T> {
