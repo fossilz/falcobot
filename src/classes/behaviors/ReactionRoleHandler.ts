@@ -67,8 +67,6 @@ export class ReactionRoleHandler {
         if (reaction_changes > 3){
             console.log('Excessive reaction changes:', member, role, reaction_changes);
         }
-        // This is purely for debugging purposes for now
-        console.log(last_reaction_state ? 'Assigning role' : 'Removing role', role.id, 'from', member.id);
         
         // Use the last state of the person's react/unreact
         if (last_reaction_state) {
@@ -206,7 +204,7 @@ class ReactionRoleQueueWorker {
 
         if (!this.queueStarted) {
             this.queueStarted = true;
-            console.log('Processing queue:', this.guild.id, this.reactionrole_id);
+            //console.log('Processing queue:', this.guild.id, this.reactionrole_id);
         }
 
         // This is how we stop the vicious cycle
