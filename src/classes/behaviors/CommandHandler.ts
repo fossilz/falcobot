@@ -1,4 +1,5 @@
 import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, GuildChannel } from "discord.js";
+import NodeCache from "node-cache";
 import ReservedCommandList from '../commands';
 import CommandModel from "../dataModels/CommandModel";
 import Repository from "../Repository";
@@ -6,16 +7,26 @@ import RepositoryFactory from "../RepositoryFactory";
 import { PermissionSetHandler, PermissionCheckResult, PermissionCheckResultType } from './PermissionSetHandler';
 
 export class CommandHandler {
+    private static _cache: NodeCache;
+    private static _semaphore = false;
+
+    private static GetCache() {
+        if (!CommandHandler._cache && !CommandHandler._semaphore) {
+            CommandHandler._semaphore = true;
+            CommandHandler._cache = new NodeCache();
+        }
+        return CommandHandler._cache;
+    }
+
     public static async RunCommand(message: Message){
         if (message.guild === null) {
             // Can't execute commands if this isn't in a guild
             return;
         }
-        const repo = await RepositoryFactory.getInstanceAsync();
 
         // Check for valid command
-        const prefix = await this.GetPrefix(message.guild, repo);
-        if (prefix === null || !this.MessagePrefixed(message, prefix )) {
+        const prefix = await this.GetPrefixAsync(message.guild.id);
+        if (prefix === undefined || !this.MessagePrefixed(message, prefix )) {
             return;
         }
         const args = this.GetMessageArguments(message, prefix);
@@ -49,16 +60,55 @@ export class CommandHandler {
         await reservedCommand.run(deletedMessage || message, args, execParams);
     }
 
-    private static async GetPrefix(guild: Guild, repo: Repository) : Promise<string|null> {
-        // We might want to cache this in future to avoid db calls on ever message
-        const gm = await repo.Guilds.select(guild.id);
-        if (gm === undefined){
-            return null;
-        }
-        return gm.prefix;
+    private static PrefixCacheKey = (guild_id: string) : string => {
+        return `CommandPrefix_${guild_id}`;
     }
 
-    private static MessagePrefixed(message: Message, prefix: string): boolean {
+    private static GetPrefixAsync = async (guild_id: string) : Promise<string|undefined> => {
+        const cache = CommandHandler.GetCache();
+        const cacheKey = CommandHandler.PrefixCacheKey(guild_id);
+        if (!cache.has(cacheKey)){
+            const repo = await RepositoryFactory.getInstanceAsync();
+            const gm = await repo.Guilds.select(guild_id);
+            const prefix = gm?.prefix;
+            cache.set(cacheKey, prefix, 300);
+            return prefix;
+        }
+        return cache.get<string>(cacheKey);
+    }
+
+    private static CommandCacheKey = (guild_id: string) : string => {
+        return `Commands_${guild_id}`;
+    }
+
+    private static GetCommandsAsync = async (guild_id: string) : Promise<CommandModel[]|undefined> => {
+        const cache = CommandHandler.GetCache();
+        const cacheKey = CommandHandler.CommandCacheKey(guild_id);
+        if (!cache.has(cacheKey)){
+            const repo = await RepositoryFactory.getInstanceAsync();
+            const commands = await repo.Commands.selectAll(guild_id);
+            cache.set(cacheKey, commands, 300);
+            return commands;
+        }
+        return cache.get<CommandModel[]>(cacheKey);
+    }
+
+    private static GetCommandAsync = async (guild_id: string, commandName: string) : Promise<CommandModel|undefined> => {
+        const commandList = await CommandHandler.GetCommandsAsync(guild_id);
+        if (commandList === undefined) return;
+        const exactMatch = commandList.find(x => x.command.toLowerCase() == commandName.toLowerCase());
+        if (exactMatch !== undefined) return exactMatch;
+        const aliasMatch = commandList.find(x => x.aliases.includes(commandName.toLowerCase()));
+        return aliasMatch;
+    }
+
+    public static ClearCommandCache = (guild_id: string) => {
+        const cache = CommandHandler.GetCache();
+        const cacheKey = CommandHandler.CommandCacheKey(guild_id);
+        cache.del(cacheKey);
+    }
+
+    private static MessagePrefixed = (message: Message, prefix: string): boolean => {
         if (prefix.length === 0){
             return false;
         }
@@ -77,8 +127,7 @@ export class CommandHandler {
     }
 
     public static async GetCommandExecutionPermissions(guild: Guild, commandName: string, member: GuildMember | null, channel?: TextChannel | DMChannel | NewsChannel, checkPermissionsIfDisabled?: boolean) {
-        const repo = await RepositoryFactory.getInstanceAsync();
-        const command = await repo.Commands.select(guild.id, commandName);
+        const command = await CommandHandler.GetCommandAsync(guild.id, commandName);
         if (command === undefined) {
             return new CommandExecutionPermissions(null);
         }

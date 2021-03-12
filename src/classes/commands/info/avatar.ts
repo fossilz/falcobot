@@ -12,7 +12,8 @@ class AvatarCommand extends Command {
             description: 'Displays a user\'s avatar',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
             examples: ['avatar @Tyler'],
-            logByDefault: false
+            logByDefault: false,
+            aliases: ['av']
         });
     }
 

@@ -11,6 +11,7 @@ export interface ICommandSettings {
     examples?: string[];
     logByDefault?: boolean;
     suppressByDefault?: boolean;
+    aliases?: string[];
 }
 
 export abstract class Command {
@@ -23,6 +24,7 @@ export abstract class Command {
     public examples: string[];
     public logByDefault: boolean;
     public suppressByDefault: boolean;
+    public aliases: string[];
 
     constructor(options: ICommandSettings) {
         this.name = options.name;
@@ -34,6 +36,7 @@ export abstract class Command {
         this.examples = options.examples || [];
         this.logByDefault = options.logByDefault ?? true;
         this.suppressByDefault = options.suppressByDefault ?? false;
+        this.aliases = options.aliases ?? [];
     }
 
     // @ts-ignore: abstract run definition

@@ -11,6 +11,7 @@ class CommandModel {
     public fallbackCommand: string|null; // (Optional) name of a command to use, instead of this one, if insufficient permissions
     public outputChannelId: string|null; // (Optional) ID of channel to redirect command output to
     public suppressCommand: boolean; // Delete the triggering command message
+    public aliases: string[];
 
     constructor(guild_id: string, command?: Command){
         this.guild_id = guild_id;
@@ -21,12 +22,14 @@ class CommandModel {
             this.logUsage = command.logByDefault;
             this.logAttempts = false;
             this.suppressCommand = command.suppressByDefault;
+            this.aliases = command.aliases;
         } else {
             this.reserved = false;
             this.enabled = false;
             this.logUsage = false;
             this.logAttempts = false;
             this.suppressCommand = false;
+            this.aliases = [];
         }
         this.permissionset_id = null;
         this.fallbackCommand = null;

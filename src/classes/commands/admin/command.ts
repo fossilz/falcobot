@@ -11,11 +11,13 @@ class CommandCommand extends Command {
         super({
             name: 'command',
             category: 'info',
-            usage: 'command [commandname] [enable|disable|log|logattempts]',
+            usage: 'command <commandname> [enable|disable|log|logattempts|output|alias]',
             description: 'Get command information',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+            defaultUserPermissions: ['ADMINISTRATOR'],
             examples: ['command', 'command purge', 'command superping disable'],
-            logByDefault: false
+            logByDefault: false,
+            aliases: ['cmd']
         });
     }
 
@@ -58,6 +60,9 @@ class CommandCommand extends Command {
             embed.addField('Log Usage', cmdModel.logUsage ? 'Yes' : 'No', true);
             embed.addField('Log Attempts', cmdModel.logAttempts ? 'Yes' : 'No', true);
             embed.addField('Suppressed', cmdModel.suppressCommand ? 'Yes' : 'No', true);
+            if (cmdModel.aliases.length > 0){
+                embed.addField('Aliases', cmdModel.aliases.join(', '), true);
+            }
             const outputChannel = this.tryGetChannel(guild, cmdModel.outputChannelId);
             if (outputChannel !== undefined){
                 embed.addField('Output redirected to', outputChannel);
@@ -69,32 +74,37 @@ class CommandCommand extends Command {
 
         const settingArg = args.shift();
         if (settingArg === undefined) {
-            this.error('Unknown command argument.  Allowed arguments: enable, disable, suppress, log, logattempts, output clear|<channel ID/mention>', executionParameters);
+            this.error('Unknown command argument.  Allowed arguments: enable, disable, suppress, log, logattempts, output clear|<channel ID/mention>, alias +|- <alias>', executionParameters);
             return;
         }
 
         switch(settingArg) {
             case 'enable':
                 await repo.Commands.updateEnabled(guild.id, cmdModel.command, true);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} enabled.`, executionParameters);
                 break;
             case 'disable':
                 await repo.Commands.updateEnabled(guild.id, cmdModel.command, false);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} disabled.`, executionParameters);
                 break;
             case 'suppress':
                 const newSuppressSetting = !cmdModel.suppressCommand;
                 await repo.Commands.updateSuppressCommand(guild.id, cmdModel.command, newSuppressSetting);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} will ${newSuppressSetting ? '' : 'not '}be deleted from channel on use.`, executionParameters);
                 break;
             case 'log':
                 const newLogSetting = !cmdModel.logUsage;
                 await repo.Commands.updateLogUsage(guild.id, cmdModel.command, newLogSetting);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} logging ${newLogSetting ? 'enabled' : 'disabled'}.`, executionParameters);
                 break;
             case 'logattempts':
                 const newLogASetting = !cmdModel.logUsage;
                 await repo.Commands.updateLogAttempts(guild.id, cmdModel.command, newLogASetting);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} attempt logging ${newLogASetting ? 'enabled' : 'disabled'}.`, executionParameters);
                 break;
             case 'output':
@@ -114,7 +124,44 @@ class CommandCommand extends Command {
                     break;
                 }
                 await repo.Commands.updateOutputChannelId(guild.id, cmdModel.command, newOutputChannel.id);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} output will be redirected to <#${newOutputChannel.id}>.`, executionParameters);
+                break;
+            case 'alias':
+                const aliasOp = args.shift();
+                if (aliasOp !== '+' && aliasOp !== '-') {
+                    this.error('Unknown alias argument.  Expected format: command <commandname> alias +|- <alias>', executionParameters);
+                    break;
+                }
+                const aliasName = args.shift();
+                if (aliasName === undefined){
+                    this.error('Unknown alias argument.  Expected format: command <commandname> alias +|- <alias>', executionParameters);
+                    break;
+                }
+                const currentAliases = cmdModel.aliases;
+                if (aliasOp === '+') {
+                    if (currentAliases.includes(aliasName)) {
+                        this.error(`Command ${cmdModel.command} already has alias ${aliasName}`, executionParameters);
+                        break;
+                    }
+                    currentAliases.push(aliasName);
+                    await repo.Commands.updateAliases(guild.id, cmdModel.command, currentAliases);
+                    CommandHandler.ClearCommandCache(guild.id);
+                    this.send(`Alias ${aliasName} added to command ${cmdModel.command}.`, executionParameters);
+                    break;
+                }
+                if (aliasOp === '-') {
+                    if (!currentAliases.includes(aliasName)) {
+                        this.error(`Command ${cmdModel.command} does not have alias ${aliasName}`, executionParameters);
+                        break;
+                    }
+                    const newAliases = currentAliases.filter(x => x !== aliasName);
+                    cmdModel.aliases = newAliases;
+                    await repo.Commands.updateAliases(guild.id, cmdModel.command, newAliases);
+                    CommandHandler.ClearCommandCache(guild.id);
+                    this.send(`Alias ${aliasName} removed from command ${cmdModel.command}.`, executionParameters);
+                    break;
+                }
                 break;
         }
 
