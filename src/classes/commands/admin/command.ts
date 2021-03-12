@@ -11,7 +11,7 @@ class CommandCommand extends Command {
         super({
             name: 'command',
             category: 'info',
-            usage: 'command <commandname> [enable|disable|log|logattempts|output|alias]',
+            usage: 'command <commandname> [enable|disable|log|logattempts|output|alias|permissionset]',
             description: 'Get command information',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
             defaultUserPermissions: ['ADMINISTRATOR'],
@@ -63,6 +63,12 @@ class CommandCommand extends Command {
             if (cmdModel.aliases.length > 0){
                 embed.addField('Aliases', cmdModel.aliases.join(', '), true);
             }
+            if (cmdModel.permissionset_id !== null) {
+                const pset = await repo.PermissionSets.select(guild.id, cmdModel.permissionset_id);
+                if (pset !== undefined){
+                    embed.addField('Permission Set', `${pset.set_id} (${pset.name})`, true);
+                }
+            }
             const outputChannel = this.tryGetChannel(guild, cmdModel.outputChannelId);
             if (outputChannel !== undefined){
                 embed.addField('Output redirected to', outputChannel);
@@ -74,7 +80,7 @@ class CommandCommand extends Command {
 
         const settingArg = args.shift();
         if (settingArg === undefined) {
-            this.error('Unknown command argument.  Allowed arguments: enable, disable, suppress, log, logattempts, output clear|<channel ID/mention>, alias +|- <alias>', executionParameters);
+            this.error('Unknown command argument.  Allowed arguments: enable, disable, suppress, log, logattempts, output clear|<channel ID/mention>, alias +|- <alias>, permissionset clear|<set ID>', executionParameters);
             return;
         }
 
@@ -162,6 +168,31 @@ class CommandCommand extends Command {
                     this.send(`Alias ${aliasName} removed from command ${cmdModel.command}.`, executionParameters);
                     break;
                 }
+                break;
+            case 'permissionset':
+                const psetId = args.shift();
+                if (psetId === undefined || psetId === null) {
+                    this.error('Unknown output argument.  Expected format: command <commandname> permissionset clear|<set ID>', executionParameters);
+                    break;
+                }
+                if (psetId.toLowerCase() === 'clear') {
+                    await repo.Commands.updatePermissionSet(guild.id, cmdModel.command, null);
+                    this.send(`Command ${cmdModel.command} permission set removed.`, executionParameters);
+                    break;
+                }
+                const permissionset_id = parseInt(psetId);
+                if (isNaN(permissionset_id)) {
+                    this.error('Invalid permission set ID', executionParameters);
+                    break;
+                }
+                const permissionSet = await repo.PermissionSets.select(guild.id, permissionset_id);
+                if (permissionSet === undefined) {
+                    this.error('Invalid permission set ID', executionParameters);
+                    break;
+                }
+                await repo.Commands.updatePermissionSet(guild.id, cmdModel.command, permissionSet.set_id);
+                CommandHandler.ClearCommandCache(guild.id);
+                this.send(`Command ${cmdModel.command} adheres to permission set ${permissionSet.set_id} (${permissionSet.name}).`, executionParameters);
                 break;
         }
 

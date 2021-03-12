@@ -83,11 +83,17 @@ export abstract class Command {
         return message.guild.members.cache.get(id);
     }
 
-    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
-        if (message === null || message.guild === null || mention === undefined || mention === null) return;
+    protected extractRoleIDFromMention = (mention: string) : string | undefined => {
+        if (mention === undefined || mention === null) return;
         const matches = mention.match(/^<@&(\d+)>$/);
         if (matches === null) return;
-        const id = matches[1];
+        return matches[1];
+    }
+
+    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
+        if (message === null || message.guild === null) return;
+        const id = this.extractRoleIDFromMention(mention);
+        if (id === undefined) return;
         return message.guild.roles.cache.get(id);
     }
 }
