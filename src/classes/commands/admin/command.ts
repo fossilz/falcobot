@@ -14,7 +14,7 @@ class CommandCommand extends Command {
             usage: 'command <commandname> [enable|disable|log|logattempts|output|alias|permissionset]',
             description: 'Get command information',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
-            defaultUserPermissions: ['ADMINISTRATOR'],
+            defaultUserPermissions: ['ADMINISTRATOR'], // This command /defaults/ to Admin, but it can be useful for others, so it does not carry adminOnly
             examples: ['command', 'command purge', 'command superping disable'],
             logByDefault: false,
             aliases: ['cmd']
@@ -173,6 +173,11 @@ class CommandCommand extends Command {
                 const psetId = args.shift();
                 if (psetId === undefined || psetId === null) {
                     this.error('Unknown output argument.  Expected format: command <commandname> permissionset clear|<set ID>', executionParameters);
+                    break;
+                }
+                const reservedCommand = ReservedCommandList.find((c) => c.name == cmdModel.command);
+                if (reservedCommand !== undefined && reservedCommand.adminOnly){
+                    this.error('Cannot apply permission sets to admin-only commands.', executionParameters);
                     break;
                 }
                 if (psetId.toLowerCase() === 'clear') {

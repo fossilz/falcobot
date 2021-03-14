@@ -12,6 +12,7 @@ export interface ICommandSettings {
     logByDefault?: boolean;
     suppressByDefault?: boolean;
     aliases?: string[];
+    adminOnly?: boolean; // This overrides PermissionSet.  Use this only for the most important command that shouldn't be allocated to sub-Admin
 }
 
 export abstract class Command {
@@ -25,6 +26,7 @@ export abstract class Command {
     public logByDefault: boolean;
     public suppressByDefault: boolean;
     public aliases: string[];
+    public adminOnly: boolean;
 
     constructor(options: ICommandSettings) {
         this.name = options.name;
@@ -37,6 +39,7 @@ export abstract class Command {
         this.logByDefault = options.logByDefault ?? true;
         this.suppressByDefault = options.suppressByDefault ?? false;
         this.aliases = options.aliases ?? [];
+        this.adminOnly = options.adminOnly ?? false;
     }
 
     // @ts-ignore: abstract run definition

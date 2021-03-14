@@ -141,6 +141,9 @@ export class CommandHandler {
     }
 
     private static async CommandCanExecute(result: PermissionCheckResult, command: CommandModel, guild: Guild, member: GuildMember | null) : Promise<boolean> {
+        if (!this.CheckReservedCommandExclusion(command, member)) {
+            return false;
+        }
         if (result.result == PermissionCheckResultType.Pass) {
             return true;
         }
@@ -153,6 +156,23 @@ export class CommandHandler {
         // Log attempt...
         // Execute fallback
         return false;
+    }
+
+    private static CheckReservedCommandExclusion(command: CommandModel, member: GuildMember | null) : boolean {
+        if (member === null) {
+            // Not sure how we got here, but no permissions to check... pass
+            return true;
+        }
+        const reservedCommand = ReservedCommandList.find((c) => c.name == command.command);
+        if (reservedCommand === undefined){
+            // Not a reserved command... can't check exclusive permissions
+            return true;
+        }
+        // Potentially add another for ownerOnly, but that might be unnecessary
+        if (reservedCommand.adminOnly && !member.hasPermission('ADMINISTRATOR')){
+            return false;
+        }
+        return true;
     }
 
     private static CheckReservedCommandDefaultPermissions(command: CommandModel, member: GuildMember | null) : boolean {

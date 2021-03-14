@@ -16,7 +16,8 @@ class PermissionSetCommand extends Command {
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
             examples: ['permissionset create Mods Only','pset list'],
             defaultUserPermissions: ['ADMINISTRATOR'],
-            aliases: ['pset']
+            aliases: ['pset'],
+            adminOnly: true
         });
     }
 
