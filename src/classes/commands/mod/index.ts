@@ -5,6 +5,8 @@ import MuteCommand from './mute';
 import NoteCommand from './note';
 import PurgeCommand from './purge';
 import SuperPingCommand from './superPing';
+import UnbanCommand from './unban';
+import UnmuteCommand from './unmute';
 import WarnCommand from './warn';
 
 const ModCommands:Command[] = [
@@ -14,7 +16,9 @@ const ModCommands:Command[] = [
     new BanCommand(),
     new KickCommand(),
     new WarnCommand(),
-    new NoteCommand()
+    new NoteCommand(),
+    new UnmuteCommand(),
+    new UnbanCommand()
 ]
 
 export default ModCommands;
