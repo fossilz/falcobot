@@ -77,6 +77,12 @@ export class CommandHandler {
         return cache.get<string>(cacheKey);
     }
 
+    public static ClearPrefixCache = (guild_id: string) => {
+        const cache = CommandHandler.GetCache();
+        const cacheKey = CommandHandler.PrefixCacheKey(guild_id);
+        cache.del(cacheKey);
+    }
+
     private static CommandCacheKey = (guild_id: string) : string => {
         return `Commands_${guild_id}`;
     }
