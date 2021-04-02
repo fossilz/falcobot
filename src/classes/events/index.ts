@@ -12,7 +12,6 @@ import voiceStateUpdate from './voiceStateUpdate';
 import guildMemberRemove from './guildMemberRemove';
 import guildMemberAdd from './guildMemberAdd';
 import guildMemberUpdate from './guildMemberUpdate';
-import messageReactionAdd from './messageReactionAdd';
 
 export default [
     message,
@@ -28,6 +27,5 @@ export default [
     voiceStateUpdate,
     guildMemberRemove,
     guildMemberAdd,
-    guildMemberUpdate,
-    messageReactionAdd
+    guildMemberUpdate
 ];

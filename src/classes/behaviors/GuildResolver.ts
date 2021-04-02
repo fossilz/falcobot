@@ -8,6 +8,7 @@ import CommandModel from "../dataModels/CommandModel";
 import Repository from "../Repository";
 import { asyncForEach } from "../utils/functions";
 import MemberModel from "../dataModels/MemberModel";
+import { ReactionRoleHandler } from './ReactionRoleHandler';
 
 export default class GuildResolver {
     public static ResolveGuild = async(guild: Guild) => {
@@ -32,6 +33,9 @@ export default class GuildResolver {
             var commandModel = new CommandModel(guild.id, command);
             await repo.Commands.insert(commandModel);
         });
+
+        // Setup reaction role listeners:
+        await ReactionRoleHandler.SetupAllReactionRoleListenersForGuildAsync(guild);
     }
 
     private static ResolveGuildMembers = async(repo: Repository, guild: Guild) : Promise<void> => {
