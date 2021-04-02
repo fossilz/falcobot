@@ -44,6 +44,9 @@ class HelpCommand extends Command {
                     .setDescription(rCommand.description);
                 embed.addField('Category', rCommand.category, true);
                 embed.addField('Enabled', command.enabled ? 'Yes' : 'No', true);
+                if (command.aliases.length > 0){
+                    embed.addField('Aliases', command.aliases.join(', '), true);
+                }
                 embed.addField('Usage', rCommand.usage);
                 if( rCommand.examples.length > 0) {
                     embed.addField('Examples', rCommand.examples.join('\n'));

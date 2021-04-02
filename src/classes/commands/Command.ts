@@ -11,6 +11,8 @@ export interface ICommandSettings {
     examples?: string[];
     logByDefault?: boolean;
     suppressByDefault?: boolean;
+    aliases?: string[];
+    adminOnly?: boolean; // This overrides PermissionSet.  Use this only for the most important command that shouldn't be allocated to sub-Admin
 }
 
 export abstract class Command {
@@ -23,6 +25,8 @@ export abstract class Command {
     public examples: string[];
     public logByDefault: boolean;
     public suppressByDefault: boolean;
+    public aliases: string[];
+    public adminOnly: boolean;
 
     constructor(options: ICommandSettings) {
         this.name = options.name;
@@ -34,6 +38,8 @@ export abstract class Command {
         this.examples = options.examples || [];
         this.logByDefault = options.logByDefault ?? true;
         this.suppressByDefault = options.suppressByDefault ?? false;
+        this.aliases = options.aliases ?? [];
+        this.adminOnly = options.adminOnly ?? false;
     }
 
     // @ts-ignore: abstract run definition
@@ -80,11 +86,17 @@ export abstract class Command {
         return message.guild.members.cache.get(id);
     }
 
-    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
-        if (message === null || message.guild === null || mention === undefined || mention === null) return;
+    protected extractRoleIDFromMention = (mention: string) : string | undefined => {
+        if (mention === undefined || mention === null) return;
         const matches = mention.match(/^<@&(\d+)>$/);
         if (matches === null) return;
-        const id = matches[1];
+        return matches[1];
+    }
+
+    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
+        if (message === null || message.guild === null) return;
+        const id = this.extractRoleIDFromMention(mention);
+        if (id === undefined) return;
         return message.guild.roles.cache.get(id);
     }
 

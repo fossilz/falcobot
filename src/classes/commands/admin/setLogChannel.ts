@@ -13,7 +13,8 @@ class SetLogChannelCommand extends Command {
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
             examples: ['setlogchannel #staff-logs'],
             defaultUserPermissions: ['ADMINISTRATOR'],
-            logByDefault: false
+            logByDefault: false,
+            adminOnly: true
         });
     }
 

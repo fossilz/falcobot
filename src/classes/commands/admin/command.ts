@@ -11,11 +11,13 @@ class CommandCommand extends Command {
         super({
             name: 'command',
             category: 'info',
-            usage: 'command [commandname] [enable|disable|log|logattempts]',
+            usage: 'command <commandname> [enable|disable|log|logattempts|output|alias|permissionset]',
             description: 'Get command information',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+            defaultUserPermissions: ['ADMINISTRATOR'], // This command /defaults/ to Admin, but it can be useful for others, so it does not carry adminOnly
             examples: ['command', 'command purge', 'command superping disable'],
-            logByDefault: false
+            logByDefault: false,
+            aliases: ['cmd']
         });
     }
 
@@ -58,6 +60,15 @@ class CommandCommand extends Command {
             embed.addField('Log Usage', cmdModel.logUsage ? 'Yes' : 'No', true);
             embed.addField('Log Attempts', cmdModel.logAttempts ? 'Yes' : 'No', true);
             embed.addField('Suppressed', cmdModel.suppressCommand ? 'Yes' : 'No', true);
+            if (cmdModel.aliases.length > 0){
+                embed.addField('Aliases', cmdModel.aliases.join(', '), true);
+            }
+            if (cmdModel.permissionset_id !== null) {
+                const pset = await repo.PermissionSets.select(guild.id, cmdModel.permissionset_id);
+                if (pset !== undefined){
+                    embed.addField('Permission Set', `${pset.set_id} (${pset.name})`, true);
+                }
+            }
             const outputChannel = this.tryGetChannel(guild, cmdModel.outputChannelId);
             if (outputChannel !== undefined){
                 embed.addField('Output redirected to', outputChannel);
@@ -69,32 +80,37 @@ class CommandCommand extends Command {
 
         const settingArg = args.shift();
         if (settingArg === undefined) {
-            this.error('Unknown command argument.  Allowed arguments: enable, disable, suppress, log, logattempts, output clear|<channel ID/mention>', executionParameters);
+            this.error('Unknown command argument.  Allowed arguments: enable, disable, suppress, log, logattempts, output clear|<channel ID/mention>, alias +|- <alias>, permissionset clear|<set ID>', executionParameters);
             return;
         }
 
         switch(settingArg) {
             case 'enable':
                 await repo.Commands.updateEnabled(guild.id, cmdModel.command, true);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} enabled.`, executionParameters);
                 break;
             case 'disable':
                 await repo.Commands.updateEnabled(guild.id, cmdModel.command, false);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} disabled.`, executionParameters);
                 break;
             case 'suppress':
                 const newSuppressSetting = !cmdModel.suppressCommand;
                 await repo.Commands.updateSuppressCommand(guild.id, cmdModel.command, newSuppressSetting);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} will ${newSuppressSetting ? '' : 'not '}be deleted from channel on use.`, executionParameters);
                 break;
             case 'log':
                 const newLogSetting = !cmdModel.logUsage;
                 await repo.Commands.updateLogUsage(guild.id, cmdModel.command, newLogSetting);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} logging ${newLogSetting ? 'enabled' : 'disabled'}.`, executionParameters);
                 break;
             case 'logattempts':
                 const newLogASetting = !cmdModel.logUsage;
                 await repo.Commands.updateLogAttempts(guild.id, cmdModel.command, newLogASetting);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} attempt logging ${newLogASetting ? 'enabled' : 'disabled'}.`, executionParameters);
                 break;
             case 'output':
@@ -114,7 +130,74 @@ class CommandCommand extends Command {
                     break;
                 }
                 await repo.Commands.updateOutputChannelId(guild.id, cmdModel.command, newOutputChannel.id);
+                CommandHandler.ClearCommandCache(guild.id);
                 this.send(`Command ${cmdModel.command} output will be redirected to <#${newOutputChannel.id}>.`, executionParameters);
+                break;
+            case 'alias':
+                const aliasOp = args.shift();
+                if (aliasOp !== '+' && aliasOp !== '-') {
+                    this.error('Unknown alias argument.  Expected format: command <commandname> alias +|- <alias>', executionParameters);
+                    break;
+                }
+                const aliasName = args.shift();
+                if (aliasName === undefined){
+                    this.error('Unknown alias argument.  Expected format: command <commandname> alias +|- <alias>', executionParameters);
+                    break;
+                }
+                const currentAliases = cmdModel.aliases;
+                if (aliasOp === '+') {
+                    if (currentAliases.includes(aliasName)) {
+                        this.error(`Command ${cmdModel.command} already has alias ${aliasName}`, executionParameters);
+                        break;
+                    }
+                    currentAliases.push(aliasName);
+                    await repo.Commands.updateAliases(guild.id, cmdModel.command, currentAliases);
+                    CommandHandler.ClearCommandCache(guild.id);
+                    this.send(`Alias ${aliasName} added to command ${cmdModel.command}.`, executionParameters);
+                    break;
+                }
+                if (aliasOp === '-') {
+                    if (!currentAliases.includes(aliasName)) {
+                        this.error(`Command ${cmdModel.command} does not have alias ${aliasName}`, executionParameters);
+                        break;
+                    }
+                    const newAliases = currentAliases.filter(x => x !== aliasName);
+                    cmdModel.aliases = newAliases;
+                    await repo.Commands.updateAliases(guild.id, cmdModel.command, newAliases);
+                    CommandHandler.ClearCommandCache(guild.id);
+                    this.send(`Alias ${aliasName} removed from command ${cmdModel.command}.`, executionParameters);
+                    break;
+                }
+                break;
+            case 'permissionset':
+                const psetId = args.shift();
+                if (psetId === undefined || psetId === null) {
+                    this.error('Unknown output argument.  Expected format: command <commandname> permissionset clear|<set ID>', executionParameters);
+                    break;
+                }
+                const reservedCommand = ReservedCommandList.find((c) => c.name == cmdModel.command);
+                if (reservedCommand !== undefined && reservedCommand.adminOnly){
+                    this.error('Cannot apply permission sets to admin-only commands.', executionParameters);
+                    break;
+                }
+                if (psetId.toLowerCase() === 'clear') {
+                    await repo.Commands.updatePermissionSet(guild.id, cmdModel.command, null);
+                    this.send(`Command ${cmdModel.command} permission set removed.`, executionParameters);
+                    break;
+                }
+                const permissionset_id = parseInt(psetId);
+                if (isNaN(permissionset_id)) {
+                    this.error('Invalid permission set ID', executionParameters);
+                    break;
+                }
+                const permissionSet = await repo.PermissionSets.select(guild.id, permissionset_id);
+                if (permissionSet === undefined) {
+                    this.error('Invalid permission set ID', executionParameters);
+                    break;
+                }
+                await repo.Commands.updatePermissionSet(guild.id, cmdModel.command, permissionSet.set_id);
+                CommandHandler.ClearCommandCache(guild.id);
+                this.send(`Command ${cmdModel.command} adheres to permission set ${permissionSet.set_id} (${permissionSet.name}).`, executionParameters);
                 break;
         }
 

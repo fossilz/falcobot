@@ -16,7 +16,7 @@ class MuteCommand extends Command {
             category: 'mod',
             usage: 'mute <user mention/ID> [time(#s|m|h|d)] [reason]',
             description: 'Mutes a user for specified amount of time (max 14 day)',
-            clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'MANAGE_MESSAGES'],
+            clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'MANAGE_ROLES'],
             defaultUserPermissions: ['MANAGE_ROLES'],
             examples: ['mute @fossilz 30s', 'mute @flamgo 30m Oh the sweet sound of silence']
         });
@@ -107,6 +107,7 @@ class MuteCommand extends Command {
 
         if (timeSpan !== null && timeSpan.totalMilliseconds > 0) {
             message.client.setTimeout(async () => {
+
                 if (!await MemberRoleHelper.TryRemoveRole(member, muteRole)) {
                     this.error('Error attempting to unmute target.', executionParameters);
                     return;
@@ -117,6 +118,14 @@ class MuteCommand extends Command {
                     .setTimestamp()
                     .setColor(me.displayHexColor);
                 this.send(unmuteEmbed, executionParameters);
+
+                const staffLog = StaffLog.FromCommand(this, message, executionParameters);
+                if (staffLog === null) return;
+                staffLog.setDescription('Automatic unmute');
+                if (member !== undefined){
+                    staffLog.addField('Member', member, true);
+                }
+                await staffLog.send();
                 
             }, timeSpan.totalMilliseconds);
         }

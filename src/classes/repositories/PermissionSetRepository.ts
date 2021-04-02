@@ -68,23 +68,25 @@ class PermissionSetRepository extends DbRepository {
     blacklist = async(guild_id: string, set_id: number, object_type: PermissionSetItemType, object_id: string) => {
         await this.db.run(`
             INSERT OR REPLACE INTO permissionSetItems (guild_id, permissionset_id, object_id, object_type, allow)
-            VALUES (:guildid, :setid, :oid, :otype, 1);
+            VALUES (:guildid, :setid, :oid, :otype, 0);
         `, { ':guildid': guild_id, ':setid': set_id, ':otype': object_type, ':oid': object_id });
         await this.removeWhitelists(guild_id, set_id);
     }
-    removeWhitelists = async(guild_id: string, set_id: number) =>
+    removeWhitelists = async(guild_id: string, set_id: number) => {
         await this.db.run(`
             UPDATE permissionSets SET useRoleWhitelist = 0 WHERE guild_id = :guildid AND set_id = :setid
             AND NOT EXISTS (SELECT 1 FROM permissionSetItems WHERE guild_id = :guildid AND permissionset_id = :setid AND object_type = 'Role' AND allow = 1);
+        `, { ':guildid': guild_id, ':setid': set_id});
+        await this.db.run(`
             UPDATE permissionSets SET useChannelWhitelist = 0 WHERE guild_id = :guildid AND set_id = :setid
             AND NOT EXISTS (SELECT 1 FROM permissionSetItems WHERE guild_id = :guildid AND permissionset_id = :setid AND object_type = 'Channel' AND allow = 1);
         `, { ':guildid': guild_id, ':setid': set_id});
+    }
 
-    delete = async(guild_id: string, set_id: number) => 
-        await this.db.run(`
-            DELETE FROM permissionSetItems WHERE guild_id = :guildid AND set_id = :setid;
-            DELETE FROM permissionSets WHERE guild_id = :guildid AND set_id = :setid;
-        `, { ':guildid': guild_id, ':setid': set_id});
+    delete = async(guild_id: string, set_id: number) => {
+        await this.db.run(`DELETE FROM permissionSetItems WHERE guild_id = :guildid AND permissionset_id = :setid;`, { ':guildid': guild_id, ':setid': set_id});
+        await this.db.run(`DELETE FROM permissionSets WHERE guild_id = :guildid AND set_id = :setid;`, { ':guildid': guild_id, ':setid': set_id});
+    };
     deleteSetItem = async(guild_id: string, set_id: number, permissionsetitem_id: number) => 
         await this.db.run(`
             DELETE FROM permissionSetItems WHERE guild_id = ? AND set_id = ? AND permissionsetitem_id = ?;

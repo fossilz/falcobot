@@ -10,10 +10,10 @@ class SetChannelAutoRoleCommand extends Command {
             name: 'setchannelautorole',
             category: 'admin',
             usage: 'setchannelautorole [channel mention/ID] [role mention/ID]',
-            description: 'Set\'s a role to automatically assign when joining a voice channel (null to remove)',
+            description: 'Sets a role to automatically assign when joining a voice channel (null to remove)',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
             examples: ['setchannelautorole #voice-channel @VCRole'],
-            defaultUserPermissions: ['ADMINISTRATOR']
+            defaultUserPermissions: ['MANAGE_GUILD']
         });
     }
 
