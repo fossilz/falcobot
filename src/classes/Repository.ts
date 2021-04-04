@@ -12,6 +12,7 @@ import MemberNoteRepository from './repositories/MemberNoteRepository';
 import AutoResponderRepository from './repositories/AutoResponderRepository';
 import ReactionRoleRepository from './repositories/ReactionRoleRepository';
 import MemberReactionRoleRepository from './repositories/MemberReactionRoleRepository';
+import AutoRoleRepository from './repositories/AutoRoleRepository';
 
 class Repository {
     private db: Database<sqlite3.Database, sqlite3.Statement>;
@@ -26,6 +27,7 @@ class Repository {
     public AutoResponders: AutoResponderRepository;
     public ReactionRoles: ReactionRoleRepository;
     public MemberReactionRoles: MemberReactionRoleRepository;
+    public AutoRoles: AutoRoleRepository;
 
     async initAsync(){
         this.db = await open({
@@ -43,6 +45,7 @@ class Repository {
         this.AutoResponders = await this.initializeRepoAsync(AutoResponderRepository);
         this.ReactionRoles = await this.initializeRepoAsync(ReactionRoleRepository);
         this.MemberReactionRoles = await this.initializeRepoAsync(MemberReactionRoleRepository);
+        this.AutoRoles = await this.initializeRepoAsync(AutoRoleRepository);
     }
 
     private async initializeRepoAsync<T extends DbRepository>(c: { new(db: Database<sqlite3.Database, sqlite3.Statement>): T }): Promise<T> {

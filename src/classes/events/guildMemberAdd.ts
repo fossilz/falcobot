@@ -1,4 +1,5 @@
 import { GuildMember } from "discord.js";
+import AutoRoleHandler from "../behaviors/AutoRoleHandler";
 import { MemberNoteHelper } from "../behaviors/MemberNoteHelper";
 import MemberModel from "../dataModels/MemberModel";
 import { NoteType } from "../dataModels/MemberNoteModel";
@@ -14,6 +15,8 @@ const handler: IEventHandler = {
         await repo.Members.insert(memberModel);
 
         await MemberNoteHelper.AddUserNote(member.guild.id, member.user.id, NoteType.Note, `Member ${member.user.username}#${member.user.discriminator} joined.`);
+
+        await AutoRoleHandler.OnGuildJoin(member);
     }
 };
 

@@ -2,7 +2,6 @@ import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, Guild
 import NodeCache from "node-cache";
 import ReservedCommandList from '../commands';
 import CommandModel from "../dataModels/CommandModel";
-import Repository from "../Repository";
 import RepositoryFactory from "../RepositoryFactory";
 import { PermissionSetHandler, PermissionCheckResult, PermissionCheckResultType } from './PermissionSetHandler';
 
