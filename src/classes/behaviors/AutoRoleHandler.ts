@@ -64,6 +64,30 @@ export default class AutoRoleHandler {
         });
     }
 
+    // This will be useful for commands which assign roles to bulk users
+    public static async ShouldAllowRole(member: GuildMember, role: Role) : Promise<boolean> {
+        const guild_id = member.guild.id;
+        const autoRoles = await this.GetAutoRolesAsync(guild_id);
+        if (autoRoles === undefined || autoRoles.length === 0){
+            return true;
+        }
+        const blockRoles = autoRoles.filter(x => x.role_id === role.id && x.add_remove === "REMOVE" && x.trigger_role_id !== null && x.trigger_on_add_remove === "ADD"); // Roles which remove this role if they're added
+        const requiredRoles = autoRoles.filter(x => x.role_id === role.id && x.add_remove === "REMOVE" && x.trigger_role_id !== null && x.trigger_on_add_remove === "REMOVE"); // Roles which remove this role if they're removed
+        // No blocking or required roles
+        if (blockRoles.length === 0 && requiredRoles.length === 0){
+            return true;
+        }
+        if (blockRoles.filter(br => br.trigger_role_id !== null && member.roles.cache.has(br.trigger_role_id)).length > 0){
+            // Member has a blocking role assigned currently
+            return false;
+        }
+        if (requiredRoles.filter(reqRole => reqRole.trigger_role_id !== null && !member.roles.cache.has(reqRole.trigger_role_id)).length > 0){
+            // Member is missing a required role
+            return false;
+        }
+        return true;
+    }
+
     private static TryAssignRoleId = async (member: GuildMember, role_id: string|null) : Promise<void> => {
         if (role_id === null) return;
         var role = member.guild.roles.cache.get(role_id);
