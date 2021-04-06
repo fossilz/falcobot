@@ -21,25 +21,29 @@ class BanCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const me = message.guild.me;
+        const guild = message.guild;
+        const member = message.member;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+        const me = guild.me;
 
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            this.error('Cannot find target.', executionParameters);
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        const member = this.extractMemberMention(message, memberArg) || message.guild.members.cache.get(memberArg);
-        var memberComparison = MemberComparer.CheckMemberComparison(message.member, member);
+        const target = Command.extractMemberMention(guild, memberArg) || guild.members.cache.get(memberArg);
+        var memberComparison = MemberComparer.CheckMemberComparison(member, target);
         if (memberComparison != MemberComparisonResult.ValidTarget) {
-            this.error(MemberComparer.FormatErrorForVerb(memberComparison, 'ban'), executionParameters);
+            Command.error(MemberComparer.FormatErrorForVerb(memberComparison, 'ban'), executionParameters);
             return;
         }
-        if (member === undefined) {
-            this.error('Cannot find target.', executionParameters);
+        if (target === undefined) {
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        if (!member.bannable) {
-            this.error('That target is not bannable.', executionParameters);
+        if (!target.bannable) {
+            Command.error('That target is not bannable.', executionParameters);
             return;
         }
 
@@ -47,31 +51,30 @@ class BanCommand extends Command {
         if (!reason) reason = '`None`';
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
-        await member.ban({ reason: reason });
+        await target.ban({ reason: reason });
 
         // We don't need the summary from this, they're being banned
-        await MemberNoteHelper.AddUserNote(member.guild.id, member.user.id, NoteType.Ban, reason, message.member);
+        await MemberNoteHelper.AddUserNote(target.guild.id, target.user.id, NoteType.Ban, reason, member);
 
         const banEmbed = new MessageEmbed()
             .setTitle('Ban Member')
-            .setDescription(`${member} was successfully banned.`)
-            .addField('Moderator', message.member, true)
-            .addField('Member', member, true);
+            .setDescription(`${target} was successfully banned.`)
+            .addField('Moderator', member, true)
+            .addField('Member', target, true);
         if (reason !== '`None`') {
             banEmbed.addField('Reason', reason);
         }
         banEmbed            
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(me.displayHexColor);
         
-        this.send(banEmbed, executionParameters);
+        Command.send(banEmbed, executionParameters);
 
-        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
-        if (member !== undefined) {
-            staffLog.addField('Member', member, true);
+        if (target !== undefined) {
+            staffLog.addField('Member', target, true);
         }
         if (reason) 
             staffLog.addField('Reason', reason, reason === '`None`'); // If the reason isn't "None" give it its own line

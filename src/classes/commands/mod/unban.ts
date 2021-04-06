@@ -20,19 +20,22 @@ class UnbanCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const me = message.guild.me;
         const guild = message.guild;
+        const member = message.member;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+        const me = guild.me;
 
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            this.error('Cannot find target.', executionParameters);
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        const memberId = this.extractMemberIDFromMention(memberArg) || memberArg;
+        const memberId = Command.extractMemberIDFromMention(memberArg) || memberArg;
         const bannedUsers = await guild.fetchBans();
         const user = bannedUsers.get(memberId)?.user;
         if (user === undefined) {
-            this.error('Cannot find target.', executionParameters);
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
 
@@ -41,23 +44,22 @@ class UnbanCommand extends Command {
 
         await guild.members.unban(user, reason);
 
-        await MemberNoteHelper.AddUserNote(guild.id, user.id, NoteType.Ban, `Unbanned: ${reason}`, message.member);
+        await MemberNoteHelper.AddUserNote(guild.id, user.id, NoteType.Ban, `Unbanned: ${reason}`, member);
 
         const unbanEmbed = new MessageEmbed()
             .setTitle('Unban Member')
             .setDescription(`${user.tag} was successfully unbanned.`)
-            .addField('Moderator', message.member, true);
+            .addField('Moderator', member, true);
         if (reason) {
             unbanEmbed.addField('Reason', reason);
         }
         unbanEmbed            
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(me.displayHexColor);
         
-        this.send(unbanEmbed, executionParameters);
+            Command.send(unbanEmbed, executionParameters);
 
-        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         staffLog.addField('User', user.tag, true);
         if (reason) 

@@ -21,20 +21,24 @@ class WarnCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const me = message.guild.me;
+        const guild = message.guild;
+        const member = message.member;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+        const me = guild.me;
 
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            this.error('Cannot find target.', executionParameters);
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        const member = this.extractMemberMention(message, memberArg) || message.guild.members.cache.get(memberArg);
-        var memberComparison = MemberComparer.CheckMemberComparison(message.member, member);
+        const target = Command.extractMemberMention(guild, memberArg) || guild.members.cache.get(memberArg);
+        var memberComparison = MemberComparer.CheckMemberComparison(member, target);
         if (memberComparison != MemberComparisonResult.ValidTarget) {
-            this.error(MemberComparer.FormatErrorForVerb(memberComparison, 'warn'), executionParameters);
+            Command.error(MemberComparer.FormatErrorForVerb(memberComparison, 'warn'), executionParameters);
             return;
         }
-        if (member === undefined) {
+        if (target === undefined) {
             return;
         }
 
@@ -43,15 +47,15 @@ class WarnCommand extends Command {
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
         // Send a DM
-        member.send(`You have been issued a warning in ${message.guild.name}: ${reason}`);
+        target.send(`You have been issued a warning in ${guild.name}: ${reason}`);
         
-        const summary = await MemberNoteHelper.AddUserNote(message.guild.id, member.user.id, NoteType.Warn, reason, message.member);
+        const summary = await MemberNoteHelper.AddUserNote(guild.id, target.user.id, NoteType.Warn, reason, member);
 
         const warnEmbed = new MessageEmbed()
             .setTitle('Warn Member')
-            .setDescription(`${member} was warned.`)
-            .addField('Moderator', message.member, true)
-            .addField('Member', member, true);
+            .setDescription(`${target} was warned.`)
+            .addField('Moderator', member, true)
+            .addField('Member', target, true);
         if (reason !== '`None`') {
             warnEmbed.addField('Reason', reason);
         }
@@ -65,17 +69,16 @@ class WarnCommand extends Command {
             warnEmbed.addField('Previous notes', noteList.join('\n'));
         }
         warnEmbed            
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(me.displayHexColor);
         
-        this.send(warnEmbed, executionParameters);
+        Command.send(warnEmbed, executionParameters);
 
-        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
-        if (member !== undefined) {
-            staffLog.addField('Member', member, true);
+        if (target !== undefined) {
+            staffLog.addField('Member', target, true);
         }
         if (reason) 
             staffLog.addField('Reason', reason, reason === '`None`'); // If the reason isn't "None" give it its own line

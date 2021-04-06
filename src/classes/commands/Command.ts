@@ -47,47 +47,6 @@ export abstract class Command {
         throw new Error(`The ${this.name} command has no run() method`);
     }
 
-    // REMOVE THESE INSTANCE METHODS
-    send = async (content: APIMessageContentResolvable | MessageAdditions, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
-        return await Command.send(content, executionParameters);
-    }
-
-    error = async (content: string | undefined, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
-        return await Command.error(content, executionParameters);
-    }
-
-    protected extractChannelIDFromMention = (mention: string) : string | undefined => {
-        return Command.extractChannelIDFromMention(mention);
-    }
-
-    protected extractChannelMention = (message: Message, mention: string) : GuildChannel | undefined => {
-        if (message === null || message.guild === null) return;
-        return Command.extractChannelMention(message.guild, mention);
-    }
-
-    protected extractMemberIDFromMention = (mention: string) : string | undefined => {
-        return Command.extractMemberIDFromMention(mention);
-    }
-
-    protected extractMemberMention = (message: Message, mention: string) : GuildMember | undefined => {
-        if (message === null || message.guild === null) return;
-        return Command.extractMemberMention(message.guild, mention);
-    }
-
-    protected extractRoleIDFromMention = (mention: string) : string | undefined => {
-        return Command.extractRoleIDFromMention(mention);
-    }
-
-    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
-        if (message === null || message.guild === null) return;
-        return Command.extractRoleMention(message.guild, mention);
-    }
-
-    protected extractEmoji = (guild: Guild, mention: string) : string | undefined => {
-        return Command.extractEmoji(guild, mention);
-    }
-    // REMOVE THESE INSTANCE METHODS
-
     public static send = async (content: APIMessageContentResolvable | MessageAdditions, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
         if (executionParameters === undefined || executionParameters.outputChannel === undefined) return;
         return await executionParameters.outputChannel.send(content);

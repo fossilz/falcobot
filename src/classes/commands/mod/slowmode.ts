@@ -19,27 +19,32 @@ class SlowmodeCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null) return;
-        let channel = this.extractChannelMention(message, args[0]) || message.guild.channels.cache.get(args[0]);
-        if (channel !== undefined) {
+        const guild = message.guild;
+        const channel = message.channel;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, channel, message.content, executionParameters);
+
+        let targetChannel = Command.extractChannelMention(guild, args[0]) || guild.channels.cache.get(args[0]);
+        if (targetChannel !== undefined) {
             args.shift();
         } else {
-            if (message.channel instanceof DMChannel) return;
-            channel = message.channel;
+            if (channel instanceof DMChannel) return;
+            targetChannel = channel;
         }
-        if (channel === null || channel === undefined || !(channel instanceof TextChannel)) {
-            this.error('Invalid channel.', executionParameters);
+        if (targetChannel === null || targetChannel === undefined || !(targetChannel instanceof TextChannel)) {
+            Command.error('Invalid channel.', executionParameters);
             return;
         }
 
-        if (channel.type !== "text" || !channel.viewable) {
-            this.error('Invalid channel.', executionParameters);
+        if (targetChannel.type !== "text" || !targetChannel.viewable) {
+            Command.error('Invalid channel.', executionParameters);
             return;
         }
 
         const timeSpanArg = args.shift();
         const timeSpan = TimeParser.ParseTimeArgument(timeSpanArg);
         if (timeSpan === null || timeSpan.totalMilliseconds > 21600000) {
-            this.error('Must specify rate between 0s and 6h.', executionParameters);
+            Command.error('Must specify rate between 0s and 6h.', executionParameters);
             return;
         }
 
@@ -47,12 +52,11 @@ class SlowmodeCommand extends Command {
         if (!reason) reason = '`None`';
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
-        await channel.setRateLimitPerUser(timeSpan.totalMilliseconds / 1000, reason);
+        await targetChannel.setRateLimitPerUser(timeSpan.totalMilliseconds / 1000, reason);
         
-        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
-        staffLog.addField('Channel', channel, true);
+        staffLog.addField('Channel', targetChannel, true);
         staffLog.addField('Slowmode', timeSpan.totalMilliseconds > 0 ? 'Enabled' : 'Disabled', true);
         if (timeSpan.totalMilliseconds > 0){
             staffLog.addField('Rate', timeSpan.toString(), true);

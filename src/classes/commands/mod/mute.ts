@@ -24,39 +24,43 @@ class MuteCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const me = message.guild.me;
+        const guild = message.guild;
+        const member = message.member;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+        const me = guild.me;
 
         var repo = await RepositoryFactory.getInstanceAsync();
-        var guild = await repo.Guilds.select(message.guild.id);
+        var guildModel = await repo.Guilds.select(guild.id);
 
-        if (guild === undefined || guild.muteRoleID === null) {
-            this.error('Mute role is not properly configured.', executionParameters);
+        if (guildModel === undefined || guildModel.muteRoleID === null) {
+            Command.error('Mute role is not properly configured.', executionParameters);
             return;
         }
-        var tryMuteRole = message.guild.roles.cache.get(guild.muteRoleID);
+        var tryMuteRole = guild.roles.cache.get(guildModel.muteRoleID);
         if (tryMuteRole === undefined) {
-            this.error('Mute role is not properly configured.', executionParameters);
+            Command.error('Mute role is not properly configured.', executionParameters);
             return;
         }
         const muteRole = tryMuteRole;
         
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            this.error('Cannot find target.', executionParameters);
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        const member = this.extractMemberMention(message, memberArg) || message.guild.members.cache.get(memberArg);
-        var memberComparison = MemberComparer.CheckMemberComparison(message.member, member);
+        const target = Command.extractMemberMention(guild, memberArg) || guild.members.cache.get(memberArg);
+        var memberComparison = MemberComparer.CheckMemberComparison(member, target);
         if (memberComparison != MemberComparisonResult.ValidTarget) {
-            this.error(MemberComparer.FormatErrorForVerb(memberComparison, 'mute'), executionParameters);
+            Command.error(MemberComparer.FormatErrorForVerb(memberComparison, 'mute'), executionParameters);
             return;
         }
-        if (member === undefined) {
-            this.error('Cannot find target.', executionParameters);
+        if (target === undefined) {
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        if (member.roles.cache.get(guild.muteRoleID)){
-            this.send('Target is already muted.', executionParameters);
+        if (target.roles.cache.get(guildModel.muteRoleID)){
+            Command.send('Target is already muted.', executionParameters);
             return;
         }
 
@@ -69,20 +73,20 @@ class MuteCommand extends Command {
         if (!reason) reason = '`None`';
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
-        if (!await MemberRoleHelper.TryAssignRole(member, muteRole)) {
-            this.error('Error attempting to mute target.', executionParameters);
+        if (!await MemberRoleHelper.TryAssignRole(target, muteRole)) {
+            Command.error('Error attempting to mute target.', executionParameters);
             return;
         }
         
-        const summary = await MemberNoteHelper.AddUserNote(member.guild.id, member.user.id, NoteType.Mute, reason, message.member);
+        const summary = await MemberNoteHelper.AddUserNote(target.guild.id, target.user.id, NoteType.Mute, reason, member);
 
-        const description = (timeSpan?.totalMilliseconds || 0) > 0 ? `${member} has now been muted for **${timeSpan?.toString()}**.` : `${member} has now been muted`;
+        const description = (timeSpan?.totalMilliseconds || 0) > 0 ? `${target} has now been muted for **${timeSpan?.toString()}**.` : `${target} has now been muted`;
 
         const muteEmbed = new MessageEmbed()
             .setTitle('Mute Member')
             .setDescription(description)
-            .addField('Moderator', message.member, true)
-            .addField('Member', member, true);
+            .addField('Moderator', member, true)
+            .addField('Member', target, true);
         if ((timeSpan?.totalMilliseconds || 0) > 0) {
             muteEmbed.addField('Time', `\`${timeSpan?.toString()}\``, true);
         }
@@ -99,42 +103,41 @@ class MuteCommand extends Command {
             muteEmbed.addField('Previous notes', noteList.join('\n'));
         }
         muteEmbed            
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(me.displayHexColor);
         
-        this.send(muteEmbed, executionParameters);
+        Command.send(muteEmbed, executionParameters);
 
         if (timeSpan !== null && timeSpan.totalMilliseconds > 0) {
             message.client.setTimeout(async () => {
 
-                if (!await MemberRoleHelper.TryRemoveRole(member, muteRole)) {
-                    this.error('Error attempting to unmute target.', executionParameters);
+                if (!await MemberRoleHelper.TryRemoveRole(target, muteRole)) {
+                    Command.error('Error attempting to unmute target.', executionParameters);
                     return;
                 }
                 const unmuteEmbed = new MessageEmbed()
                     .setTitle('Unmute Member')
-                    .setDescription(`${member} has been unmuted.`)
+                    .setDescription(`${target} has been unmuted.`)
                     .setTimestamp()
                     .setColor(me.displayHexColor);
-                this.send(unmuteEmbed, executionParameters);
+                Command.send(unmuteEmbed, executionParameters);
 
                 const staffLog = StaffLog.FromCommand(this, message, executionParameters);
                 if (staffLog === null) return;
                 staffLog.setDescription('Automatic unmute');
-                if (member !== undefined){
-                    staffLog.addField('Member', member, true);
+                if (target !== undefined){
+                    staffLog.addField('Member', target, true);
                 }
                 await staffLog.send();
                 
             }, timeSpan.totalMilliseconds);
         }
 
-        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
-        if (member !== undefined){
-            staffLog.addField('Member', member, true);
+        if (target !== undefined){
+            staffLog.addField('Member', target, true);
         }
         if (timeSpan !== null && timeSpan.totalMilliseconds > 0) {
             staffLog.addField('Time', timeSpan.toString(), true);

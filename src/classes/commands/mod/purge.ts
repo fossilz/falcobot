@@ -18,31 +18,36 @@ class PurgeCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null) return;
-        let channel = this.extractChannelMention(message, args[0]) || message.guild.channels.cache.get(args[0]);
-        if (channel !== undefined) {
+        const guild = message.guild;
+        const channel = message.channel;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, channel, message.content, executionParameters);
+
+        let targetChannel = Command.extractChannelMention(guild, args[0]) || guild.channels.cache.get(args[0]);
+        if (targetChannel !== undefined) {
             args.shift();
         } else {
-            if (message.channel instanceof DMChannel) return;
-            channel = message.channel;
+            if (channel instanceof DMChannel) return;
+            targetChannel = channel;
         }
-        if (channel === null || channel === undefined || !(channel instanceof TextChannel)) {
-            this.error('Invalid channel.', executionParameters);
+        if (targetChannel === null || targetChannel === undefined || !(targetChannel instanceof TextChannel)) {
+            Command.error('Invalid channel.', executionParameters);
             return;
         }
 
-        if (channel.type !== "text" || !channel.viewable) {
-            this.error('Invalid channel.', executionParameters);
+        if (targetChannel.type !== "text" || !targetChannel.viewable) {
+            Command.error('Invalid channel.', executionParameters);
             return;
         }
 
-        let member = this.extractMemberMention(message, args[0]) || message.guild.members.cache.get(args[0]);
-        if (member !== undefined) {
+        let target = Command.extractMemberMention(guild, args[0]) || guild.members.cache.get(args[0]);
+        if (target !== undefined) {
             args.shift();
         }
 
         const amount = parseInt(args[0]);
         if (isNaN(amount) === true || !amount || amount < 0 || amount > 100) {
-            this.error('Please specify a purge count (1-100)', executionParameters);
+            Command.error('Please specify a purge count (1-100)', executionParameters);
             return;
         }
 
@@ -50,8 +55,8 @@ class PurgeCommand extends Command {
         if (!reason) reason = '`None`';
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
-        if (!this.canDelete(channel)) {
-            this.error('Cannot delete messages in this channel', executionParameters);
+        if (!PurgeCommand.canDelete(targetChannel)) {
+            Command.error('Cannot delete messages in this channel', executionParameters);
             return;
         }
 
@@ -65,14 +70,13 @@ class PurgeCommand extends Command {
             }
         }
 
-        const deletedMessageCount = await PurgeCommand.bulkDelete(channel, member, amount);
+        const deletedMessageCount = await PurgeCommand.bulkDelete(targetChannel, target, amount);
         
-        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
-        staffLog.addField('Channel', channel, true);
-        if (member !== undefined){
-            staffLog.addField('Member', member, true);
+        staffLog.addField('Channel', targetChannel, true);
+        if (target !== undefined){
+            staffLog.addField('Member', target, true);
         }
         staffLog.addField('Deleted Count', deletedMessageCount, true);
         if (reason) 
@@ -93,7 +97,7 @@ class PurgeCommand extends Command {
         return deletedMessages.size;
     }
 
-    private canDelete = (channel: TextChannel): boolean => {
+    private static canDelete = (channel: TextChannel): boolean => {
         if (channel.guild.me === null) {
             return false;
         }

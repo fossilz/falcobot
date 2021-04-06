@@ -21,20 +21,24 @@ class KickCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const me = message.guild.me;
+        const guild = message.guild;
+        const member = message.member;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+        const me = guild.me;
 
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            this.error('Cannot find target.', executionParameters);
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        const member = this.extractMemberMention(message, memberArg) || message.guild.members.cache.get(memberArg);
-        var memberComparison = MemberComparer.CheckMemberComparison(message.member, member);
+        const target = Command.extractMemberMention(guild, memberArg) || guild.members.cache.get(memberArg);
+        var memberComparison = MemberComparer.CheckMemberComparison(member, target);
         if (memberComparison != MemberComparisonResult.ValidTarget) {
-            this.error(MemberComparer.FormatErrorForVerb(memberComparison, 'kick'), executionParameters);
+            Command.error(MemberComparer.FormatErrorForVerb(memberComparison, 'kick'), executionParameters);
             return;
         }
-        if (member === undefined) {
+        if (target === undefined) {
             return;
         }
 
@@ -42,31 +46,30 @@ class KickCommand extends Command {
         if (!reason) reason = '`None`';
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
-        await member.kick(reason);
+        await target.kick(reason);
         
         // We don't need the summary from this, they're being kicked
-        await MemberNoteHelper.AddUserNote(member.guild.id, member.user.id, NoteType.Kick, reason, message.member);
+        await MemberNoteHelper.AddUserNote(target.guild.id, target.user.id, NoteType.Kick, reason, member);
 
         const kickEmbed = new MessageEmbed()
             .setTitle('Kick Member')
-            .setDescription(`${member} was successfully kicked.`)
-            .addField('Moderator', message.member, true)
-            .addField('Member', member, true);
+            .setDescription(`${target} was successfully kicked.`)
+            .addField('Moderator', member, true)
+            .addField('Member', target, true);
         if (reason !== '`None`') {
             kickEmbed.addField('Reason', reason);
         }
         kickEmbed            
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(me.displayHexColor);
         
-        this.send(kickEmbed, executionParameters);
+        Command.send(kickEmbed, executionParameters);
 
-        const staffLog = StaffLog.FromCommand(this, message, executionParameters);
         if (staffLog === null) return;
         
-        if (member !== undefined) {
-            staffLog.addField('Member', member, true);
+        if (target !== undefined) {
+            staffLog.addField('Member', target, true);
         }
         if (reason) 
             staffLog.addField('Reason', reason, reason === '`None`'); // If the reason isn't "None" give it its own line

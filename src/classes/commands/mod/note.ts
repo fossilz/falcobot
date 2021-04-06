@@ -24,15 +24,18 @@ class NoteCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const me = message.guild.me;
         const guild = message.guild;
+        const member = message.member;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+        const me = guild.me;
 
         const mArg = args.shift();
         if (mArg === undefined) {
-            this.error('Cannot find target.', executionParameters);
+            Command.error('Cannot find target.', executionParameters);
             return;
         }
-        let memberId = this.extractMemberIDFromMention(mArg) || mArg;
+        let memberId = Command.extractMemberIDFromMention(mArg) || mArg;
         const memberMatches = await MemberFinder.FindMember(guild, memberId);
 
         if (memberMatches.length > 1) {
@@ -42,31 +45,31 @@ class NoteCommand extends Command {
                 .setTitle(`Members matching: ${args[0]} [${memberMatches.length}]`)
                 .setTimestamp()
                 .setDescription(firstTenMembers.map(x => MemberFinder.FormatMember(x)).join('\n') + ((memberMatches.length > 10) ? '\n... more ...' : ''));
-            this.send(matchEmbed, executionParameters);
+                Command.send(matchEmbed, executionParameters);
             return;
         }
         const gMember = memberMatches[0];
-        const member = guild.members.cache.get(gMember?.user_id || memberId);
+        const target = guild.members.cache.get(gMember?.user_id || memberId);
 
         let noteText = args.join(' ');
 
         if (noteText) {
-            var memberComparison = MemberComparer.CheckMemberComparison(message.member, member);
+            var memberComparison = MemberComparer.CheckMemberComparison(member, target);
             if (
                 memberComparison != MemberComparisonResult.ValidTarget && 
                 memberComparison != MemberComparisonResult.InvalidTarget &&  // We can add notes to users not on this server
                 memberComparison != MemberComparisonResult.CannotTargetSelf // We can add notes to self
             ) {
-                this.error(MemberComparer.FormatErrorForVerb(memberComparison, 'note'), executionParameters);
+                Command.error(MemberComparer.FormatErrorForVerb(memberComparison, 'note'), executionParameters);
                 return;
             }
-            const summary = await MemberNoteHelper.AddUserNote(message.guild.id, gMember?.user_id || memberId, NoteType.Note, noteText, message.member);
+            const summary = await MemberNoteHelper.AddUserNote(guild.id, gMember?.user_id || memberId, NoteType.Note, noteText, member);
 
             const noteEmbed = new MessageEmbed()
                 .setTitle('Add Note to Member')
                 .setDescription(`<@!${gMember?.user_id || memberId}> had a note added.`)
-                .addField('Moderator', message.member, true)
-                .addField('Member', member || memberId, true)
+                .addField('Moderator', member, true)
+                .addField('Member', target || memberId, true)
                 .addField('Text', noteText);
             if (summary.totalNotes() > 1) {
                 const noteList: string[] = [];
@@ -78,17 +81,16 @@ class NoteCommand extends Command {
                 noteEmbed.addField('Other notes', noteList.join('\n'));
             }
             noteEmbed            
-                .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+                .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
                 .setTimestamp()
                 .setColor(me.displayHexColor);
             
-            this.send(noteEmbed, executionParameters);
+            Command.send(noteEmbed, executionParameters);
 
-            const staffLog = StaffLog.FromCommand(this, message, executionParameters);
             if (staffLog === null) return;
             
-            if (member !== undefined) {
-                staffLog.addField('Member', member, true);
+            if (target !== undefined) {
+                staffLog.addField('Member', target, true);
             } else {
                 staffLog.addField('User ID', gMember?.user_id || memberId, true);
             }
@@ -102,20 +104,20 @@ class NoteCommand extends Command {
             const embed = new MessageEmbed();
             if (gMember !== undefined) {
                 embed
-                    .setAuthor(`${gMember.user_name}#${gMember.user_discriminator}`, member?.user.avatarURL() || undefined);
+                    .setAuthor(`${gMember.user_name}#${gMember.user_discriminator}`, target?.user.avatarURL() || undefined);
             }
             embed
                 .setDescription(`<@!${gMember?.user_id || memberId}> Notes [${noteList.length}]`)
-                .setThumbnail(member?.user.avatarURL({ dynamic: true }) || '')
-                .addField('Notes', noteList.length === 0 ? 'This user has no notes' : noteList.map(this.formatNote).join('\n'))
+                .setThumbnail(target?.user.avatarURL({ dynamic: true }) || '')
+                .addField('Notes', noteList.length === 0 ? 'This user has no notes' : noteList.map(NoteCommand.formatNote).join('\n'))
                 .setFooter(gMember?.user_id || memberId)
                 .setTimestamp()
-                .setColor(member?.displayHexColor || message.guild.me.displayHexColor);
-            this.send(embed, executionParameters);
+                .setColor(target?.displayHexColor || guild.me.displayHexColor);
+            Command.send(embed, executionParameters);
         }
     }
 
-    private formatNote = (note: MemberNoteModel): string => {
+    private static formatNote = (note: MemberNoteModel): string => {
         const dt = new Date(note.timestamp);
         const ts = moment(dt);
         return `${ts.format('YYYY-MM-DD HH:mmZ')}${note.author_id === null ? '' : ' <@!' + note.author_id + '>'} **${note.type}** - ${note.text}`;
