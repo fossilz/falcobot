@@ -1,6 +1,6 @@
-import { Guild, Message, MessageEmbed, TextChannel } from "discord.js";
+import { DMChannel, Guild, Message, MessageEmbed, NewsChannel, TextChannel, User } from "discord.js";
+import GuildCache from "../cache/GuildCache";
 import { Command } from "../commands/Command";
-import RepositoryFactory from "../RepositoryFactory";
 import { CommandExecutionParameters } from "./CommandHandler";
 
 export enum LogType {
@@ -25,8 +25,7 @@ export class StaffLog extends MessageEmbed {
         if (this.guild === undefined || this.guild === null || this.guild.me === null){
             return;
         }
-        const repo = await RepositoryFactory.getInstanceAsync();
-        const gModel = await repo.Guilds.select(this.guild.id);
+        const gModel = await GuildCache.GetGuildAsync(this.guild.id);
         const staffLogChannelID = gModel?.staffLogChannelID;
         if (staffLogChannelID === undefined || staffLogChannelID === null){
             return;
@@ -49,9 +48,13 @@ export class StaffLog extends MessageEmbed {
 
     public static FromCommand = (command: Command, message: Message, executionParameters?: CommandExecutionParameters) : StaffLog | null => {
         if (message.guild === null) return null;
+        return StaffLog.FromCommandContext(command, message.guild, message.author, message.channel, message.content, executionParameters);
+    }
+
+    public static FromCommandContext = (command: Command, guild: Guild, author: User, channel: TextChannel|NewsChannel|DMChannel, content: string, executionParameters?: CommandExecutionParameters) : StaffLog | null => {
         if (executionParameters != undefined && !executionParameters.logUsage) return null;
-        return new StaffLog(message.guild, LogType.Command, command.name)
-            .setAuthor(message.author.username, message.author.avatarURL() || undefined)
-            .setDescription(`Used \`${command.name}\` command in <#${message.channel.id}>\n${message.content}`);
+        return new StaffLog(guild, LogType.Command, command.name)
+        .setAuthor(author.username, author.avatarURL() || undefined)
+        .setDescription(`Used \`${command.name}\` command in <#${channel.id}>\n${content}`);
     }
 }

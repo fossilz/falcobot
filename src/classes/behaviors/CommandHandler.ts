@@ -1,5 +1,6 @@
 import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, GuildChannel } from "discord.js";
 import NodeCache from "node-cache";
+import GuildCache from "../cache/GuildCache";
 import ReservedCommandList from '../commands';
 import CommandModel from "../dataModels/CommandModel";
 import RepositoryFactory from "../RepositoryFactory";
@@ -59,27 +60,9 @@ export class CommandHandler {
         await reservedCommand.run(deletedMessage || message, args, execParams);
     }
 
-    private static PrefixCacheKey = (guild_id: string) : string => {
-        return `CommandPrefix_${guild_id}`;
-    }
-
     private static GetPrefixAsync = async (guild_id: string) : Promise<string|undefined> => {
-        const cache = CommandHandler.GetCache();
-        const cacheKey = CommandHandler.PrefixCacheKey(guild_id);
-        if (!cache.has(cacheKey)){
-            const repo = await RepositoryFactory.getInstanceAsync();
-            const gm = await repo.Guilds.select(guild_id);
-            const prefix = gm?.prefix;
-            cache.set(cacheKey, prefix, 300);
-            return prefix;
-        }
-        return cache.get<string>(cacheKey);
-    }
-
-    public static ClearPrefixCache = (guild_id: string) => {
-        const cache = CommandHandler.GetCache();
-        const cacheKey = CommandHandler.PrefixCacheKey(guild_id);
-        cache.del(cacheKey);
+        const guild = await GuildCache.GetGuildAsync(guild_id);
+        return guild?.prefix;
     }
 
     private static CommandCacheKey = (guild_id: string) : string => {

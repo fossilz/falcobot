@@ -47,60 +47,98 @@ export abstract class Command {
         throw new Error(`The ${this.name} command has no run() method`);
     }
 
+    // REMOVE THESE INSTANCE METHODS
     send = async (content: APIMessageContentResolvable | MessageAdditions, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
+        return await Command.send(content, executionParameters);
+    }
+
+    error = async (content: string | undefined, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
+        return await Command.error(content, executionParameters);
+    }
+
+    protected extractChannelIDFromMention = (mention: string) : string | undefined => {
+        return Command.extractChannelIDFromMention(mention);
+    }
+
+    protected extractChannelMention = (message: Message, mention: string) : GuildChannel | undefined => {
+        if (message === null || message.guild === null) return;
+        return Command.extractChannelMention(message.guild, mention);
+    }
+
+    protected extractMemberIDFromMention = (mention: string) : string | undefined => {
+        return Command.extractMemberIDFromMention(mention);
+    }
+
+    protected extractMemberMention = (message: Message, mention: string) : GuildMember | undefined => {
+        if (message === null || message.guild === null) return;
+        return Command.extractMemberMention(message.guild, mention);
+    }
+
+    protected extractRoleIDFromMention = (mention: string) : string | undefined => {
+        return Command.extractRoleIDFromMention(mention);
+    }
+
+    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
+        if (message === null || message.guild === null) return;
+        return Command.extractRoleMention(message.guild, mention);
+    }
+
+    protected extractEmoji = (guild: Guild, mention: string) : string | undefined => {
+        return Command.extractEmoji(guild, mention);
+    }
+    // REMOVE THESE INSTANCE METHODS
+
+    public static send = async (content: APIMessageContentResolvable | MessageAdditions, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
         if (executionParameters === undefined || executionParameters.outputChannel === undefined) return;
         return await executionParameters.outputChannel.send(content);
     }
 
-    error = async (content: string | undefined, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
+    public static error = async (content: string | undefined, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
         if (executionParameters === undefined || executionParameters.outputChannel === undefined) return;
         if (content === undefined) return;
         return await executionParameters.outputChannel.send(`ERROR: ${content}`);
     }
 
-    protected extractChannelIDFromMention = (mention: string) : string | undefined => {
+    public static extractChannelIDFromMention = (mention: string) : string | undefined => {
         if (mention === undefined || mention === null) return;
         const matches = mention.match(/^<#(\d+)>$/);
         if (matches === null) return;
         return matches[1];
     }
 
-    protected extractChannelMention = (message: Message, mention: string) : GuildChannel | undefined => {
-        if (message === null || message.guild === null) return;
-        const id = this.extractChannelIDFromMention(mention);
+    public static extractChannelMention = (guild: Guild, mention: string) : GuildChannel | undefined => {
+        const id = Command.extractChannelIDFromMention(mention);
         if (id === undefined) return;
-        return message.guild.channels.cache.get(id);
+        return guild.channels.cache.get(id);
     }
 
-    protected extractMemberIDFromMention = (mention: string) : string | undefined => {
+    public static extractMemberIDFromMention = (mention: string) : string | undefined => {
         if (mention === undefined || mention === null) return;
         const matches = mention.match(/^<@!?(\d+)>$/);
         if (matches === null) return;
         return matches[1];
     }
 
-    protected extractMemberMention = (message: Message, mention: string) : GuildMember | undefined => {
-        if (message === null || message.guild === null) return;
-        const id = this.extractMemberIDFromMention(mention);
+    public static extractMemberMention = (guild: Guild, mention: string) : GuildMember | undefined => {
+        const id = Command.extractMemberIDFromMention(mention);
         if (id === undefined) return;
-        return message.guild.members.cache.get(id);
+        return guild.members.cache.get(id);
     }
 
-    protected extractRoleIDFromMention = (mention: string) : string | undefined => {
+    public static extractRoleIDFromMention = (mention: string) : string | undefined => {
         if (mention === undefined || mention === null) return;
         const matches = mention.match(/^<@&(\d+)>$/);
         if (matches === null) return;
         return matches[1];
     }
 
-    protected extractRoleMention = (message: Message, mention: string) : Role | undefined => {
-        if (message === null || message.guild === null) return;
-        const id = this.extractRoleIDFromMention(mention);
+    public static extractRoleMention = (guild: Guild, mention: string) : Role | undefined => {
+        const id = Command.extractRoleIDFromMention(mention);
         if (id === undefined) return;
-        return message.guild.roles.cache.get(id);
+        return guild.roles.cache.get(id);
     }
 
-    protected extractEmoji = (guild: Guild, mention: string) : string | undefined => {
+    public static extractEmoji = (guild: Guild, mention: string) : string | undefined => {
         if (mention === undefined || mention === null) return;
         const emoteRegex = /<:.+:(\d+)>/gm
         const animatedEmoteRegex = /<a:.+:(\d+)>/gm

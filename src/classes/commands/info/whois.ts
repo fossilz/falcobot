@@ -24,15 +24,17 @@ class WhoisCommand extends Command {
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const guild = message.guild;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
         var repo = await RepositoryFactory.getInstanceAsync();
 
-        let memberId = this.extractMemberIDFromMention(args[0]) || args[0];
+        let memberId = Command.extractMemberIDFromMention(args[0]) || args[0];
         if (memberId === undefined) {
             memberId = message.member.id;
         }
         const memberMatches = await MemberFinder.FindMember(guild, memberId);
         if (memberMatches.length === 0){
-            this.error('No member found.', executionParameters);
+            Command.error('No member found.', executionParameters);
             return;
         }
 
@@ -43,7 +45,7 @@ class WhoisCommand extends Command {
                 .setTitle(`Members matching: ${args[0]} [${memberMatches.length}]`)
                 .setTimestamp()
                 .setDescription(firstTenMembers.map(x => MemberFinder.FormatMember(x)).join('\n') + ((memberMatches.length > 10) ? '\n... more ...' : ''));
-            this.send(matchEmbed, executionParameters);
+                Command.send(matchEmbed, executionParameters);
             return;
         }
         const gMember = memberMatches[0];
@@ -53,7 +55,7 @@ class WhoisCommand extends Command {
         const permArray: string[] = [];
 
         if (member !== undefined) {
-            roles = member.roles.cache.array().filter(x => x.id !== message.guild?.id);
+            roles = member.roles.cache.array().filter(x => x.id !== guild?.id);
             roleList = roles.join(' ');
 
             // Administrator covers all, so... just abbreviate
@@ -79,7 +81,7 @@ class WhoisCommand extends Command {
             .addField('Registered', member === undefined ? "Unknown" : moment(member.user.createdAt).format('YYYY-MM-DD HH:mmZ'), true)
             .setFooter(gMember.user_id)
             .setTimestamp()
-            .setColor(member?.displayHexColor || message.guild.me.displayHexColor);
+            .setColor(member?.displayHexColor || guild.me.displayHexColor);
         if (gMember.bot) {
             embed.addField('Bot', 'True', true);
         }
@@ -101,9 +103,9 @@ class WhoisCommand extends Command {
             if (summary.banCount > 0) noteList.push(`${summary.banCount} ban${summary.banCount === 1 ? '' : 's'}`);
             embed.addField('Notes', noteList.join('\n'));
         }
-        this.send(embed, executionParameters);
+        Command.send(embed, executionParameters);
 
-        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+        await staffLog?.send();
     }
 }
 

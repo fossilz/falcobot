@@ -17,21 +17,24 @@ class MooCommand extends Command {
     }
 
     run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
+        if (message.guild === null || message.member === null) return;
+        const member = message.member;
+        
+        const staffLog = StaffLog.FromCommandContext(this, message.guild, message.author, message.channel, message.content, executionParameters);
 
         const embed = new MessageEmbed()
             .setTitle('Moo')
             .setImage("https://media.giphy.com/media/KSOb453X3WPRu/giphy.gif")
             .setFooter("Mooooo")
             .setTimestamp()
-            .setColor(message.member.displayHexColor);
-        const mooMessage = await this.send(embed, executionParameters);
+            .setColor(member.displayHexColor);
+        const mooMessage = await Command.send(embed, executionParameters);
         if (mooMessage === undefined) return;
         await mooMessage.react("🇲");
         await mooMessage.react("🅾️");
         await mooMessage.react("🇴");
 
-        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+        await staffLog?.send();
     }
 }
 

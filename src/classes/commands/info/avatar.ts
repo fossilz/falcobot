@@ -19,17 +19,21 @@ class AvatarCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const member = this.extractMemberMention(message, args[0]) || message.guild.members.cache.get(args[0]) || message.member;
+        const guild = message.guild;
+        const msgMember = message.member;
+        
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+        const member = Command.extractMemberMention(guild, args[0]) || guild.members.cache.get(args[0]) || msgMember;
         
         const embed = new MessageEmbed()
             .setTitle(`${member.displayName}'s Avatar`)
             .setImage(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(msgMember.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(member.displayHexColor);
-        this.send(embed, executionParameters);
+        Command.send(embed, executionParameters);
 
-        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+        await staffLog?.send();
     }
 }
 

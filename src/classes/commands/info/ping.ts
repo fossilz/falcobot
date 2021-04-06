@@ -17,11 +17,14 @@ class PingCommand extends Command {
 
     run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
+        const guild = message.guild;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
 
         const embed = new MessageEmbed()
             .setDescription('`Pinging...`')
-            .setColor(message.guild.me.displayHexColor);  
-        const msg = await this.send(embed, executionParameters);
+            .setColor(guild.me.displayHexColor);  
+        const msg = await Command.send(embed, executionParameters);
         if (msg === undefined) {
             return;
         }
@@ -37,7 +40,7 @@ class PingCommand extends Command {
             .setTimestamp();
         msg.edit(embed);
 
-        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+        await staffLog?.send();
     }
 }
 

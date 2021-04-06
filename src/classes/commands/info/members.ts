@@ -16,9 +16,12 @@ class MembersCommand extends Command {
     }
 
     run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
+        if (message.guild === null || message.member === null) return;
+        const guild = message.guild;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
         
-        const members = message.guild.members.cache.array();
+        const members = guild.members.cache.array();
         const total = members.length;
         const online = members.filter((m) => m.presence.status === 'online').length;
         const offline =  members.filter((m) => m.presence.status === 'offline').length;
@@ -27,14 +30,14 @@ class MembersCommand extends Command {
         
         const embed = new MessageEmbed()
             .setTitle(`Member Status [${total}]`)
-            .setThumbnail(message.guild.iconURL({ dynamic: true }) || '')
+            .setThumbnail(guild.iconURL({ dynamic: true }) || '')
             .setDescription(`**Online:** \`${online}\` members\n**Busy:** \`${dnd}\` members\n**AFK:** \`${afk}\` members\n**Offline:** \`${offline}\` members`)
             .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
-            .setColor(message.guild.me.displayHexColor);
-        this.send(embed, executionParameters);
+            .setColor(guild.me.displayHexColor);
+        Command.send(embed, executionParameters);
 
-        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+        await staffLog?.send();
     }
 }
 

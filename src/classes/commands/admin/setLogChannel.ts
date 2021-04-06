@@ -2,6 +2,7 @@ import { Message } from "discord.js";
 import { Command } from "../Command";
 import RepositoryFactory from "../../RepositoryFactory";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
+import GuildCache from "../../cache/GuildCache";
 
 class SetLogChannelCommand extends Command {
     constructor(){
@@ -20,16 +21,19 @@ class SetLogChannelCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
+        const guild = message.guild;
         const repo = await RepositoryFactory.getInstanceAsync();
 
-        let channel = this.extractChannelMention(message, args[0]) || message.guild.channels.cache.get(args[0]);
+        let channel = Command.extractChannelMention(guild, args[0]) || guild.channels.cache.get(args[0]);
 
-        await repo.Guilds.updateStaffLogChannel(message.guild.id, channel?.id || null);
+        await repo.Guilds.updateStaffLogChannel(guild.id, channel?.id || null);
+
+        GuildCache.ClearCache(guild.id);
 
         if (channel) {
-            this.send(`Staff Log channel set to <#${channel.id}>`, executionParameters);
+            Command.send(`Staff Log channel set to <#${channel.id}>`, executionParameters);
         } else {
-            this.send(`Staff Log channel cleared (logging disabled)`, executionParameters);
+            Command.send(`Staff Log channel cleared (logging disabled)`, executionParameters);
         }
     }
 }

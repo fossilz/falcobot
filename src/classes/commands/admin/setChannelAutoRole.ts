@@ -19,31 +19,33 @@ class SetChannelAutoRoleCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
+        const guild = message.guild;
+        const staffLog = StaffLog.FromCommandContext(this, message.guild, message.author, message.channel, message.content, executionParameters);
         const repo = await RepositoryFactory.getInstanceAsync();
 
-        const channel = this.extractChannelMention(message, args[0]) || message.guild.channels.cache.get(args[0]);
+        const channel = Command.extractChannelMention(guild, args[0]) || guild.channels.cache.get(args[0]);
         if (channel === undefined) {
-            this.error('Cannot find channel', executionParameters);
+            Command.error('Cannot find channel', executionParameters);
             return;
         }
 
         let roleId: string|null = null;
         if (args.length == 2) {
-            const role = this.extractRoleMention(message, args[1]) || message.guild.roles.cache.get(args[1]);
+            const role = Command.extractRoleMention(guild, args[1]) || guild.roles.cache.get(args[1]);
             if (role !== undefined) {
                 roleId = role.id;
             }
         }
 
-        await repo.Channels.updateAutoRole(message.guild.id, channel.id, roleId);
+        await repo.Channels.updateAutoRole(guild.id, channel.id, roleId);
 
         if (roleId !== null) {
-            this.send(`Joining <#${channel.id}> will automatically assign <@&${roleId}>`, executionParameters);
+            Command.send(`Joining <#${channel.id}> will automatically assign <@&${roleId}>`, executionParameters);
         } else {
-            this.send(`Joining <#${channel.id}> will not automatically assign a role.`, executionParameters);
+            Command.send(`Joining <#${channel.id}> will not automatically assign a role.`, executionParameters);
         }
         
-        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+        await staffLog?.send();
     }
 }
 

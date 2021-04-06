@@ -19,14 +19,18 @@ class RoleInfoCommand extends Command {
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
+        const guild = message.guild;
+        const member = message.member;
+        if (guild.me === null) return;
+        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
         
-        const role = this.extractRoleMention(message, args[0]) || message.guild.roles.cache.get(args[0]);
+        const role = Command.extractRoleMention(guild, args[0]) || guild.roles.cache.get(args[0]);
         if (role == undefined) {
-            this.error('No role found.', executionParameters);
+            Command.error('No role found.', executionParameters);
             return;
         }
-        if (!message.member.hasPermission('ADMINISTRATOR') && role.position > message.member.roles.highest.position) {
-            this.error('Cannot get role info on a role above your own.', executionParameters);
+        if (!member.hasPermission('ADMINISTRATOR') && role.position > member.roles.highest.position) {
+            Command.error('Cannot get role info on a role above your own.', executionParameters);
             return;
         }
 
@@ -40,11 +44,11 @@ class RoleInfoCommand extends Command {
         });
 
         // Reverse role position
-        const position = `\`${message.guild.roles.cache.size - role.position}\`/\`${message.guild.roles.cache.size}\``;
+        const position = `\`${guild.roles.cache.size - role.position}\`/\`${guild.roles.cache.size}\``;
 
         const embed = new MessageEmbed()
             .setTitle('Role Information')
-            .setThumbnail(message.guild.iconURL({ dynamic: true }) || '')
+            .setThumbnail(guild.iconURL({ dynamic: true }) || '')
             .addField('Role', role, true)
             .addField('Role ID', `\`${role.id}\``, true)
             .addField('Position', position, true)
@@ -55,12 +59,12 @@ class RoleInfoCommand extends Command {
             .addField('Hoisted', `\`${role.hoist}\``, true)
             .addField('Created On', `\`${role.createdAt}\``, true)
             .addField('Permissions', `\`\`\`${permArray.join(', ')}\`\`\``)
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(role.hexColor);
-        this.send(embed, executionParameters);
+        Command.send(embed, executionParameters);
 
-        await StaffLog.FromCommand(this, message, executionParameters)?.send();
+        await staffLog?.send();
     }
 }
 

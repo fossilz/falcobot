@@ -1,7 +1,8 @@
 import { Message } from "discord.js";
 import { Command } from "../Command";
 import RepositoryFactory from "../../RepositoryFactory";
-import { CommandExecutionParameters, CommandHandler } from "../../behaviors/CommandHandler";
+import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
+import GuildCache from "../../cache/GuildCache";
 
 class SetPrefixCommand extends Command {
     constructor(){
@@ -21,29 +22,29 @@ class SetPrefixCommand extends Command {
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
         if (message.guild === null || message.guild.me === null || message.member === null) return;
         const guild_id = message.guild.id;
-        const repo = await RepositoryFactory.getInstanceAsync();
 
         const prefix = args[0];
         if (prefix === undefined || prefix === ''){
-            this.error('Please specify a prefix character.', executionParameters);
+            Command.error('Please specify a prefix character.', executionParameters);
             return;
         }
 
         if (prefix.length > 1){
-            this.error('Please use only a single character for command prefix.', executionParameters);
+            Command.error('Please use only a single character for command prefix.', executionParameters);
             return;
         }
 
         if (/^[a-zA-Z0-9\\\s]$/g.test(prefix)){
-            this.error('Please do not use letters, numbers, a slash, or space as the command prefix.', executionParameters);
+            Command.error('Please do not use letters, numbers, a slash, or space as the command prefix.', executionParameters);
             return;
         }
 
+        const repo = await RepositoryFactory.getInstanceAsync();
         await repo.Guilds.updatePrefix(guild_id, prefix);
 
-        CommandHandler.ClearPrefixCache(guild_id);
+        GuildCache.ClearCache(guild_id);
 
-        this.send(`Command prefix set to ${prefix}`, executionParameters);
+        Command.send(`Command prefix set to ${prefix}`, executionParameters);
     }
 }
 

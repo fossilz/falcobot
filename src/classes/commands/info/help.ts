@@ -20,21 +20,22 @@ class HelpCommand extends Command {
     }
 
     run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
+        if (message.guild === null || message.member === null) return;
         const guild = message.guild;
+        if (guild.me === null) return;
 
         const repo = await RepositoryFactory.getInstanceAsync();
-        const commands = await repo.Commands.selectAll(message.guild.id);
+        const commands = await repo.Commands.selectAll(guild.id);
 
         let commandName: string | undefined = undefined;
         if (args.length > 0) {
             commandName = args.shift();
         }
 
-        const commandHelpers = await this.getCommandHelpers(commandName, commands, guild, message.member);
+        const commandHelpers = await HelpCommand.getCommandHelpers(commandName, commands, guild, message.member);
         const embed = new MessageEmbed()
             .setTimestamp()
-            .setColor(message.guild.me.displayHexColor);
+            .setColor(guild.me.displayHexColor);
         if (commandHelpers.length === 1 && commandHelpers[0].category === undefined && commandHelpers[0].commands.length === 1) {
             const command = commandHelpers[0].commands[0];
             const rCommand = ReservedCommandList.find(rc => rc.name == command.command);
@@ -66,11 +67,11 @@ class HelpCommand extends Command {
             });
         }
 
-        this.send(embed, executionParameters);
+        Command.send(embed, executionParameters);
     }
 
-    private getCommandHelpers = async (commandName: string|undefined, commands: CommandModel[], guild: Guild, member: GuildMember|null) : Promise<CommandCategory[]> => {
-        const specificCommand = await this.getAllowedCommand(commands.find((c) => c.command === commandName), guild, member);
+    private static getCommandHelpers = async (commandName: string|undefined, commands: CommandModel[], guild: Guild, member: GuildMember|null) : Promise<CommandCategory[]> => {
+        const specificCommand = await HelpCommand.getAllowedCommand(commands.find((c) => c.command === commandName), guild, member);
         if (specificCommand != undefined) {
             const returnCat = new CommandCategory();
             returnCat.commands.push(specificCommand);
@@ -85,7 +86,7 @@ class HelpCommand extends Command {
             await asyncForEach(rcommands, async (command) => {
                 const cModel = commands.find(c => c.command == command.name);
                 if (cModel === undefined) return;
-                const allowedCommand = await this.getAllowedCommand(cModel, guild, member);
+                const allowedCommand = await HelpCommand.getAllowedCommand(cModel, guild, member);
                 if (allowedCommand === undefined) return;
                 ccat.commands.push(allowedCommand);
             });
@@ -98,7 +99,7 @@ class HelpCommand extends Command {
             const customCategory = new CommandCategory();
             customCategory.category = 'Custom';
             await asyncForEach(customCommands, async (command) => {
-                const allowedCommand = await this.getAllowedCommand(command, guild, member);
+                const allowedCommand = await HelpCommand.getAllowedCommand(command, guild, member);
                 if (allowedCommand === undefined) return;
                 customCategory.commands.push(allowedCommand);
             });
@@ -109,7 +110,7 @@ class HelpCommand extends Command {
         return resultSet;
     }
 
-    private getAllowedCommand = async (command: CommandModel | undefined, guild: Guild, member: GuildMember|null) : Promise<CommandModel|undefined> => {
+    private static getAllowedCommand = async (command: CommandModel | undefined, guild: Guild, member: GuildMember|null) : Promise<CommandModel|undefined> => {
         if (command === undefined) return;
         var pModel = await CommandHandler.GetCommandExecutionPermissions(guild, command.command, member, undefined, true);
         if (!pModel.canExecute) return;
