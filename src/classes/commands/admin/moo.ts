@@ -1,5 +1,4 @@
 import { Message, MessageEmbed } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
@@ -16,25 +15,22 @@ class MooCommand extends Command {
         });
     }
 
-    run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.member === null) return;
-        const member = message.member;
-        
-        const staffLog = StaffLog.FromCommandContext(this, message.guild, message.author, message.channel, message.content, executionParameters);
+    run = async (_: Message, __: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        if (commandExec.messageMember === null) return;
 
         const embed = new MessageEmbed()
             .setTitle('Moo')
             .setImage("https://media.giphy.com/media/KSOb453X3WPRu/giphy.gif")
             .setFooter("Mooooo")
             .setTimestamp()
-            .setColor(member.displayHexColor);
-        const mooMessage = await Command.send(embed, executionParameters);
+            .setColor(commandExec.messageMember.displayHexColor);
+        const mooMessage = await commandExec.sendAsync(embed);
         if (mooMessage === undefined) return;
         await mooMessage.react("🇲");
         await mooMessage.react("🅾️");
         await mooMessage.react("🇴");
 
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 }
 

@@ -1,5 +1,4 @@
 import { Message, TextChannel } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
@@ -12,21 +11,19 @@ class SuperPingCommand extends Command {
             description: 'Pings the mentioned user on every channel with optional message',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
             defaultUserPermissions: ['ADMINISTRATOR'],
-            examples: ['superping @flamgo So many pings']
+            examples: ['superping @flamgo So many pings'],
+            adminOnly: true
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        const guild = commandExec.guild;
         
         let target = Command.extractMemberMention(guild, args[0]) || guild.members.cache.get(args[0]);
         if (target !== undefined) {
             args.shift();
         } else {
-            Command.error('Invalid target', executionParameters);
+            await commandExec.errorAsync('Invalid target');
             return;
         }
 
@@ -38,11 +35,12 @@ class SuperPingCommand extends Command {
             await c.send(`<@${target?.id}> ${msgText}`);
         });
         
-        if (staffLog === null) return;
+        const commandlog = commandExec.getCommandLog();
+        if (commandlog === null) return;
         
-        staffLog.addField('Target', target, true);
+        commandlog.addField('Target', target, true);
         
-        await staffLog.send();
+        await commandExec.logAsync(commandlog);
     }
 }
 

@@ -1,9 +1,11 @@
-import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, GuildChannel } from "discord.js";
+import { timeStamp } from "console";
+import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, GuildChannel, APIMessageContentResolvable, MessageAdditions, User } from "discord.js";
 import NodeCache from "node-cache";
 import GuildCache from "../cache/GuildCache";
 import ReservedCommandList from '../commands';
 import CommandModel from "../dataModels/CommandModel";
 import RepositoryFactory from "../RepositoryFactory";
+import CommandLog from "./CommandLog";
 import { PermissionSetHandler, PermissionCheckResult, PermissionCheckResultType } from './PermissionSetHandler';
 
 export class CommandHandler {
@@ -23,9 +25,10 @@ export class CommandHandler {
             // Can't execute commands if this isn't in a guild
             return;
         }
+        const guild = message.guild;
 
         // Check for valid command
-        const prefix = await this.GetPrefixAsync(message.guild.id);
+        const prefix = await this.GetPrefixAsync(guild.id);
         if (prefix === undefined || !this.MessagePrefixed(message, prefix )) {
             return;
         }
@@ -36,7 +39,7 @@ export class CommandHandler {
         }
         const cmd = firstArg.toLowerCase();
 
-        var commandPermissions = await CommandHandler.GetCommandExecutionPermissions(message.guild, cmd, message.member, message.channel);
+        var commandPermissions = await CommandHandler.GetCommandExecutionPermissions(guild, cmd, message.member, message.channel);
         if (!commandPermissions.enabled || !commandPermissions.canExecute){
             return;
         }
@@ -201,30 +204,71 @@ export class CommandExecutionPermissions {
 }
 
 export class CommandExecutionParameters {
-    outputChannel: TextChannel | undefined;
-    deleteCommand: boolean;
-    logUsage: boolean;
+    private outputChannel: TextChannel | undefined;
+    public deleteCommand: boolean;
+    private logUsage: boolean;
+    public guild: Guild;
+    public me: GuildMember;
+    public messageMember: GuildMember | null;
+    public messageAuthor: User;
+    public messageChannel: TextChannel|NewsChannel|DMChannel;
+    private messageContent: string;
+    private commandName: string|null;
 
     constructor(message: Message, command: CommandModel | null) {
+        if (message.guild === null) throw new Error("Cannot execute command without a guild");
+        this.guild = message.guild;
+        if (this.guild.me === null) throw new Error("Cannot execute command if bot isn't in the guild");
+        this.me = this.guild.me;
+        this.messageMember = message.member;
+        this.messageAuthor = message.author;
+        this.messageChannel = message.channel;
+        this.messageContent = message.content;
+
+        this.commandName = command?.command || null;
         this.outputChannel = message.channel instanceof TextChannel ? message.channel : undefined;
         this.deleteCommand = command?.suppressCommand || false;
         this.logUsage = command === null || command.logUsage;
-        if (message.guild !== null) {
-            this.checkOverrideChannel(message.guild, command);
-        }
+        this.checkOverrideChannel(command);
     }
 
-    private checkOverrideChannel = (guild: Guild, command: CommandModel | null) : void => {
-        if (command === null || command?.outputChannelId === null || guild.me === null) return;
-        const channel = guild.channels.cache.get(command.outputChannelId);
+    private checkOverrideChannel = (command: CommandModel | null) : void => {
+        if (command === null || command?.outputChannelId === null || this.guild.me === null) return;
+        const channel = this.guild.channels.cache.get(command.outputChannelId);
         if (
             channel === undefined || 
             !(channel instanceof TextChannel) || 
             !channel.viewable || 
-            !channel.permissionsFor(guild.me)?.has(['SEND_MESSAGES', 'EMBED_LINKS'])
+            !channel.permissionsFor(this.guild.me)?.has(['SEND_MESSAGES', 'EMBED_LINKS'])
         ){
             return;
         }
         this.outputChannel = channel;
+    }
+
+    public sendAsync = async (content: APIMessageContentResolvable | MessageAdditions) : Promise<Message|undefined> => {
+        if (this.outputChannel === undefined) return;
+        return await this.outputChannel.send(content);
+    }
+
+    public errorAsync = async (content: string | undefined) : Promise<Message|undefined> => {
+        if (this.outputChannel === undefined) return;
+        if (content === undefined) return;
+        return await this.outputChannel.send(`ERROR: ${content}`);
+    }
+
+    public logAsync = async (commandLog: CommandLog|null) : Promise<void> => {
+        if (commandLog === null) return;
+        if (!this.logUsage) return;
+        await commandLog.send(this.guild);
+    }
+
+    public getCommandLog = () : CommandLog|null => {
+        if (this.commandName === null) return null;
+        return new CommandLog(this.commandName, this.messageAuthor, this.messageChannel, this.messageContent);
+    }
+
+    public logDefaultAsync = async () : Promise<void> => {
+        await this.logAsync(this.getCommandLog());
     }
 }

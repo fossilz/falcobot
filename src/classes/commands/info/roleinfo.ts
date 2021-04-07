@@ -1,5 +1,4 @@
 import { Message, MessageEmbed } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import PermissionList from '../../utils/permissions';
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
@@ -17,20 +16,18 @@ class RoleInfoCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
-        const member = message.member;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        if (commandExec.messageMember === null) return;
+        const guild = commandExec.guild;
+        const member = commandExec.messageMember;
         
         const role = Command.extractRoleMention(guild, args[0]) || guild.roles.cache.get(args[0]);
         if (role == undefined) {
-            Command.error('No role found.', executionParameters);
+            await commandExec.errorAsync('No role found.');
             return;
         }
         if (!member.hasPermission('ADMINISTRATOR') && role.position > member.roles.highest.position) {
-            Command.error('Cannot get role info on a role above your own.', executionParameters);
+            await commandExec.errorAsync('Cannot get role info on a role above your own.');
             return;
         }
 
@@ -59,12 +56,12 @@ class RoleInfoCommand extends Command {
             .addField('Hoisted', `\`${role.hoist}\``, true)
             .addField('Created On', `\`${role.createdAt}\``, true)
             .addField('Permissions', `\`\`\`${permArray.join(', ')}\`\`\``)
-            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  commandExec.messageAuthor.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
             .setColor(role.hexColor);
-        Command.send(embed, executionParameters);
+        await commandExec.sendAsync(embed);
 
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 }
 

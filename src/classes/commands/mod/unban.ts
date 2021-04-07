@@ -1,5 +1,4 @@
 import { Message, MessageEmbed } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 import { MemberNoteHelper } from "../../behaviors/MemberNoteHelper";
@@ -18,24 +17,21 @@ class UnbanCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
-        const member = message.member;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
-        const me = guild.me;
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        if (commandExec.messageMember === null) return;
+        const guild = commandExec.guild;
+        const member = commandExec.messageMember;
 
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            Command.error('Cannot find target.', executionParameters);
+            await commandExec.errorAsync('Cannot find target.');
             return;
         }
         const memberId = Command.extractMemberIDFromMention(memberArg) || memberArg;
         const bannedUsers = await guild.fetchBans();
         const user = bannedUsers.get(memberId)?.user;
         if (user === undefined) {
-            Command.error('Cannot find target.', executionParameters);
+            await commandExec.errorAsync('Cannot find target.');
             return;
         }
 
@@ -54,18 +50,19 @@ class UnbanCommand extends Command {
             unbanEmbed.addField('Reason', reason);
         }
         unbanEmbed            
-            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName, commandExec.messageAuthor.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
-            .setColor(me.displayHexColor);
+            .setColor(commandExec.me.displayHexColor);
         
-            Command.send(unbanEmbed, executionParameters);
+            await commandExec.sendAsync(unbanEmbed);
 
-        if (staffLog === null) return;
-        staffLog.addField('User', user.tag, true);
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('User', user.tag, true);
         if (reason) 
-            staffLog.addField('Reason', reason); // If the reason isn't "None" give it its own line
+            commandLog.addField('Reason', reason); // If the reason isn't "None" give it its own line
         
-        await staffLog.send();
+        await commandExec.logAsync(commandLog);
     }
 }
 

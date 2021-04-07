@@ -1,7 +1,6 @@
 import { Message, MessageEmbed } from "discord.js";
 import { MemberComparer, MemberComparisonResult } from "../../behaviors/MemberComparer";
 import RepositoryFactory from "../../RepositoryFactory";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { MemberRoleHelper } from '../../behaviors/MemberRoleHelper';
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
@@ -21,45 +20,42 @@ class UnmuteCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
-        const member = message.member;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
-        const me = guild.me;
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        if (commandExec.messageMember === null) return;
+        const guild = commandExec.guild;
+        const member = commandExec.messageMember;
 
         var repo = await RepositoryFactory.getInstanceAsync();
         var guildModel = await repo.Guilds.select(guild.id);
 
         if (guildModel === undefined || guildModel.muteRoleID === null) {
-            Command.error('Mute role is not properly configured.', executionParameters);
+            await commandExec.errorAsync('Mute role is not properly configured.');
             return;
         }
         var tryMuteRole = guild.roles.cache.get(guildModel.muteRoleID);
         if (tryMuteRole === undefined) {
-            Command.error('Mute role is not properly configured.', executionParameters);
+            await commandExec.errorAsync('Mute role is not properly configured.');
             return;
         }
         const muteRole = tryMuteRole;
         
         const memberArg = args.shift();
         if (memberArg === undefined) {
-            Command.error('Cannot find target.', executionParameters);
+            await commandExec.errorAsync('Cannot find target.');
             return;
         }
         const target = Command.extractMemberMention(guild, memberArg) || guild.members.cache.get(memberArg);
         var memberComparison = MemberComparer.CheckMemberComparison(member, target);
         if (memberComparison != MemberComparisonResult.ValidTarget) {
-            Command.error(MemberComparer.FormatErrorForVerb(memberComparison, 'unmute'), executionParameters);
+            await commandExec.errorAsync(MemberComparer.FormatErrorForVerb(memberComparison, 'unmute'));
             return;
         }
         if (target === undefined) {
-            Command.error('Cannot find target.', executionParameters);
+            await commandExec.errorAsync('Cannot find target.');
             return;
         }
         if (!target.roles.cache.get(guildModel.muteRoleID)){
-            Command.send('Target is not muted.', executionParameters);
+            await commandExec.sendAsync('Target is not muted.');
             return;
         }
 
@@ -67,7 +63,7 @@ class UnmuteCommand extends Command {
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
         if (!await MemberRoleHelper.TryRemoveRole(target, muteRole)) {
-            Command.error('Error attempting to unmute target.', executionParameters);
+            await commandExec.errorAsync('Error attempting to unmute target.');
             return;
         }
         
@@ -84,21 +80,22 @@ class UnmuteCommand extends Command {
             unmuteEmbed.addField('Reason', reason);
         }
         unmuteEmbed            
-            .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(member.displayName,  commandExec.messageAuthor.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
-            .setColor(me.displayHexColor);
+            .setColor(commandExec.me.displayHexColor);
         
-        Command.send(unmuteEmbed, executionParameters);
+        await commandExec.sendAsync(unmuteEmbed);
 
-        if (staffLog === null) return;
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
         
         if (target !== undefined){
-            staffLog.addField('Member', target, true);
+            commandLog.addField('Member', target, true);
         }
         if (reason) 
-            staffLog.addField('Reason', reason);
+            commandLog.addField('Reason', reason);
         
-        await staffLog.send();
+        await commandExec.logAsync(commandLog);
     }
 }
 

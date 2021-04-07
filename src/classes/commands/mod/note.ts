@@ -1,6 +1,5 @@
 import { Message, MessageEmbed } from "discord.js";
 import { MemberComparer, MemberComparisonResult } from "../../behaviors/MemberComparer";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 import { MemberNoteHelper } from "../../behaviors/MemberNoteHelper";
@@ -22,17 +21,14 @@ class NoteCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
-        const member = message.member;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
-        const me = guild.me;
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        if (commandExec.messageMember === null) return;
+        const guild = commandExec.guild;
+        const member = commandExec.messageMember;
 
         const mArg = args.shift();
         if (mArg === undefined) {
-            Command.error('Cannot find target.', executionParameters);
+            await commandExec.errorAsync('Cannot find target.');
             return;
         }
         let memberId = Command.extractMemberIDFromMention(mArg) || mArg;
@@ -45,7 +41,7 @@ class NoteCommand extends Command {
                 .setTitle(`Members matching: ${args[0]} [${memberMatches.length}]`)
                 .setTimestamp()
                 .setDescription(firstTenMembers.map(x => MemberFinder.FormatMember(x)).join('\n') + ((memberMatches.length > 10) ? '\n... more ...' : ''));
-                Command.send(matchEmbed, executionParameters);
+                await commandExec.sendAsync(matchEmbed);
             return;
         }
         const gMember = memberMatches[0];
@@ -60,7 +56,7 @@ class NoteCommand extends Command {
                 memberComparison != MemberComparisonResult.InvalidTarget &&  // We can add notes to users not on this server
                 memberComparison != MemberComparisonResult.CannotTargetSelf // We can add notes to self
             ) {
-                Command.error(MemberComparer.FormatErrorForVerb(memberComparison, 'note'), executionParameters);
+                await commandExec.errorAsync(MemberComparer.FormatErrorForVerb(memberComparison, 'note'));
                 return;
             }
             const summary = await MemberNoteHelper.AddUserNote(guild.id, gMember?.user_id || memberId, NoteType.Note, noteText, member);
@@ -81,23 +77,24 @@ class NoteCommand extends Command {
                 noteEmbed.addField('Other notes', noteList.join('\n'));
             }
             noteEmbed            
-                .setFooter(member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+                .setFooter(member.displayName,  commandExec.messageAuthor.displayAvatarURL({ dynamic: true }))
                 .setTimestamp()
-                .setColor(me.displayHexColor);
+                .setColor(commandExec.me.displayHexColor);
             
-            Command.send(noteEmbed, executionParameters);
+            await commandExec.sendAsync(noteEmbed);
 
-            if (staffLog === null) return;
+            const commandLog = commandExec.getCommandLog();
+            if (commandLog === null) return;
             
             if (target !== undefined) {
-                staffLog.addField('Member', target, true);
+                commandLog.addField('Member', target, true);
             } else {
-                staffLog.addField('User ID', gMember?.user_id || memberId, true);
+                commandLog.addField('User ID', gMember?.user_id || memberId, true);
             }
             if (noteText) 
-                staffLog.addField('Text', noteText, noteText === '`None`'); // If the reason isn't "None" give it its own line
+                commandLog.addField('Text', noteText, noteText === '`None`'); // If the reason isn't "None" give it its own line
             
-            await staffLog.send();
+            await commandExec.logAsync(commandLog);
         } else {
             const repo = await RepositoryFactory.getInstanceAsync();
             const noteList = await repo.MemberNotes.selectAllForUser(guild.id, gMember?.user_id || memberId);
@@ -112,8 +109,8 @@ class NoteCommand extends Command {
                 .addField('Notes', noteList.length === 0 ? 'This user has no notes' : noteList.map(NoteCommand.formatNote).join('\n'))
                 .setFooter(gMember?.user_id || memberId)
                 .setTimestamp()
-                .setColor(target?.displayHexColor || guild.me.displayHexColor);
-            Command.send(embed, executionParameters);
+                .setColor(target?.displayHexColor || commandExec.me.displayHexColor);
+            await commandExec.sendAsync(embed);
         }
     }
 

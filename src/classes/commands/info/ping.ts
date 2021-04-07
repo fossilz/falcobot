@@ -1,5 +1,4 @@
 import { Message, MessageEmbed } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
@@ -15,16 +14,11 @@ class PingCommand extends Command {
         });
     }
 
-    run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
-
+    run = async (message: Message, _: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const embed = new MessageEmbed()
             .setDescription('`Pinging...`')
-            .setColor(guild.me.displayHexColor);  
-        const msg = await Command.send(embed, executionParameters);
+            .setColor(commandExec.me.displayHexColor);  
+        const msg = await commandExec.sendAsync(embed);
         if (msg === undefined) {
             return;
         }
@@ -36,11 +30,11 @@ class PingCommand extends Command {
             .setDescription('')
             .addField('Latency', latency, true)
             .addField('API Latency', apiLatency, true)
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(commandExec.messageMember?.displayName || commandExec.messageAuthor.username,  commandExec.messageAuthor.displayAvatarURL({ dynamic: true }))
             .setTimestamp();
         msg.edit(embed);
 
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 }
 

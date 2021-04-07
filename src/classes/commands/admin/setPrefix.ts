@@ -19,23 +19,22 @@ class SetPrefixCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild_id = message.guild.id;
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        const guild_id = commandExec.guild.id;
 
         const prefix = args[0];
         if (prefix === undefined || prefix === ''){
-            Command.error('Please specify a prefix character.', executionParameters);
+            await commandExec.errorAsync('Please specify a prefix character.');
             return;
         }
 
         if (prefix.length > 1){
-            Command.error('Please use only a single character for command prefix.', executionParameters);
+            await commandExec.errorAsync('Please use only a single character for command prefix.');
             return;
         }
 
         if (/^[a-zA-Z0-9\\\s]$/g.test(prefix)){
-            Command.error('Please do not use letters, numbers, a slash, or space as the command prefix.', executionParameters);
+            await commandExec.errorAsync('Please do not use letters, numbers, a slash, or space as the command prefix.');
             return;
         }
 
@@ -44,7 +43,7 @@ class SetPrefixCommand extends Command {
 
         GuildCache.ClearCache(guild_id);
 
-        Command.send(`Command prefix set to ${prefix}`, executionParameters);
+        await commandExec.sendAsync(`Command prefix set to ${prefix}`);
     }
 }
 

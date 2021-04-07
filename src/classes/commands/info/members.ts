@@ -1,6 +1,5 @@
 import { Message, MessageEmbed } from "discord.js";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 
 class MembersCommand extends Command {
@@ -15,11 +14,8 @@ class MembersCommand extends Command {
         });
     }
 
-    run = async (message: Message, _: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.member === null) return;
-        const guild = message.guild;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, message.channel, message.content, executionParameters);
+    run = async (_: Message, __: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        const guild = commandExec.guild;
         
         const members = guild.members.cache.array();
         const total = members.length;
@@ -32,12 +28,12 @@ class MembersCommand extends Command {
             .setTitle(`Member Status [${total}]`)
             .setThumbnail(guild.iconURL({ dynamic: true }) || '')
             .setDescription(`**Online:** \`${online}\` members\n**Busy:** \`${dnd}\` members\n**AFK:** \`${afk}\` members\n**Offline:** \`${offline}\` members`)
-            .setFooter(message.member.displayName,  message.author.displayAvatarURL({ dynamic: true }))
+            .setFooter(commandExec.messageMember?.displayName || commandExec.messageAuthor.username,  commandExec.messageAuthor.displayAvatarURL({ dynamic: true }))
             .setTimestamp()
-            .setColor(guild.me.displayHexColor);
-        Command.send(embed, executionParameters);
+            .setColor(commandExec.me.displayHexColor);
+        await commandExec.sendAsync(embed);
 
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 }
 

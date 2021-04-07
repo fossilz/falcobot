@@ -1,4 +1,4 @@
-import { APIMessageContentResolvable, Guild, GuildChannel, GuildMember, Message, MessageAdditions, PermissionString, Role } from 'discord.js';
+import { Guild, GuildChannel, GuildMember, Message, PermissionString, Role } from 'discord.js';
 import { CommandExecutionParameters } from '../behaviors/CommandHandler';
 
 export interface ICommandSettings {
@@ -43,19 +43,8 @@ export abstract class Command {
     }
 
     // @ts-ignore: abstract run definition
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    run = async (message: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         throw new Error(`The ${this.name} command has no run() method`);
-    }
-
-    public static send = async (content: APIMessageContentResolvable | MessageAdditions, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
-        if (executionParameters === undefined || executionParameters.outputChannel === undefined) return;
-        return await executionParameters.outputChannel.send(content);
-    }
-
-    public static error = async (content: string | undefined, executionParameters?: CommandExecutionParameters) : Promise<Message|undefined> => {
-        if (executionParameters === undefined || executionParameters.outputChannel === undefined) return;
-        if (content === undefined) return;
-        return await executionParameters.outputChannel.send(`ERROR: ${content}`);
     }
 
     public static extractChannelIDFromMention = (mention: string) : string | undefined => {

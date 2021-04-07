@@ -2,7 +2,6 @@ import { Guild, Message, MessageEmbed } from "discord.js";
 import { Command } from "../Command";
 import RepositoryFactory from "../../RepositoryFactory";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
-import { StaffLog } from "../../behaviors/StaffLog";
 import PermissionSetModel from "../../dataModels/PermissionSetModel";
 import { PermissionSetItemModel } from "../../dataModels/PermissionSetItemModel";
 
@@ -21,34 +20,28 @@ class PermissionSetCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
-        
-        const staffLog = StaffLog.FromCommandContext(this, message.guild, message.author, message.channel, message.content, executionParameters);
-
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const initialArg = args.shift() || "list";
 
         switch(initialArg) {
             case "create":
-                await PermissionSetCommand.create(guild, args, staffLog, executionParameters);
+                await PermissionSetCommand.create(args, commandExec);
                 break;
             case "delete":
-                await PermissionSetCommand.delete(guild, args, staffLog, executionParameters);
+                await PermissionSetCommand.delete(args, commandExec);
                 break;
             case "list":
-                await PermissionSetCommand.list(guild, staffLog, executionParameters);
+                await PermissionSetCommand.list(commandExec);
                 break;
             default:
-                await PermissionSetCommand.pset(guild, initialArg, args, staffLog, executionParameters);
+                await PermissionSetCommand.pset(initialArg, args, commandExec);
                 break;
         }
     }
 
-    private static list = async (guild: Guild, staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (guild.me === null) return;
+    private static list = async (commandExec: CommandExecutionParameters) : Promise<void> => {
         const repo = await RepositoryFactory.getInstanceAsync();
-        const permissionSets = await repo.PermissionSets.selectAll(guild.id);
+        const permissionSets = await repo.PermissionSets.selectAll(commandExec.guild.id);
 
         let description = 'No permission sets have been created';
         if (permissionSets.length > 0) {
@@ -58,96 +51,96 @@ class PermissionSetCommand extends Command {
         const embed = new MessageEmbed()
             .setTimestamp()
             .setTitle('Permission Sets')
-            .setColor(guild.me.displayHexColor)
+            .setColor(commandExec.me.displayHexColor)
             .setFooter('permissionset <id> for more information.')
             .setDescription(description);
         
-        Command.send(embed, executionParameters);
+        await commandExec.sendAsync(embed);
         
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 
-    private static create = async (guild: Guild, args: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static create = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         if (args.length === 0) {
-            Command.error('Invalid create syntax.  Please use: permissionset create <name>', executionParameters);
+            await commandExec.errorAsync('Invalid create syntax.  Please use: permissionset create <name>');
             return;
         }
         const name = args.join(' ').trim();
         if (name === ''){
-            Command.error('Invalid create syntax.  Please use: permissionset create <name>', executionParameters);
+            await commandExec.errorAsync('Invalid create syntax.  Please use: permissionset create <name>');
             return;
         }
         const repo = await RepositoryFactory.getInstanceAsync();
-        const permissionSetId = await repo.PermissionSets.insert(guild.id, name);
+        const permissionSetId = await repo.PermissionSets.insert(commandExec.guild.id, name);
         if (permissionSetId === undefined) {
-            Command.error('Unable to create permission set.', executionParameters);
+            await commandExec.errorAsync('Unable to create permission set.');
             return;
         }
-        Command.send(`Permission set ${permissionSetId} created.`, executionParameters);
+        await commandExec.sendAsync(`Permission set ${permissionSetId} created.`);
 
-        if (staffLog === null) return;
-        staffLog.addField('Action', 'Created', true);
-        staffLog.addField('Set ID', permissionSetId, true);
-        staffLog.addField('Name', name, true);
-        await staffLog.send();
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Action', 'Created', true);
+        commandLog.addField('Set ID', permissionSetId, true);
+        commandLog.addField('Name', name, true);
+        await commandExec.logAsync(commandLog);
     }
 
-    private static delete = async (guild: Guild, args: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (guild.me === null) return;
+    private static delete = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const initialArg = args.shift();
         if (initialArg === undefined){
-            Command.error('Invalid syntax.  Please use: permissionset delete <id>', executionParameters);
+            await commandExec.errorAsync('Invalid syntax.  Please use: permissionset delete <id>');
             return;
         }
         const psetId = parseInt(initialArg);
         if (isNaN(psetId)){
-            Command.error('Invalid syntax.  Please use: permissionset delete <id>', executionParameters);
+            await commandExec.errorAsync('Invalid syntax.  Please use: permissionset delete <id>');
             return;
         }
         const repo = await RepositoryFactory.getInstanceAsync();
-        const permissionSet = await repo.PermissionSets.select(guild.id, psetId);
+        const permissionSet = await repo.PermissionSets.select(commandExec.guild.id, psetId);
         if (permissionSet === undefined){
-            Command.error('Invalid Permission Set.  Please supply a valid ID.  See permissionset list for all valid sets.', executionParameters);
+            await commandExec.errorAsync('Invalid Permission Set.  Please supply a valid ID.  See permissionset list for all valid sets.');
             return;
         }
-        await repo.PermissionSets.delete(guild.id, psetId);
+        await repo.PermissionSets.delete(commandExec.guild.id, psetId);
 
-        if (staffLog === null) return;
-        staffLog.addField('Action', 'Deleted', true);
-        staffLog.addField('Set ID', psetId, true);
-        staffLog.addField('Name', permissionSet.name, true);
-        await staffLog.send();
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Action', 'Deleted', true);
+        commandLog.addField('Set ID', psetId, true);
+        commandLog.addField('Name', permissionSet.name, true);
+        await commandExec.logAsync(commandLog);
     }
 
-    private static pset = async (guild: Guild, initialArg: string, args: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (guild.me === null) return;
+    private static pset = async (initialArg: string, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const psetId = parseInt(initialArg);
         if (isNaN(psetId)){
-            Command.error('Invalid syntax.  Please use: permissionset <id>', executionParameters);
+            await commandExec.errorAsync('Invalid syntax.  Please use: permissionset <id>');
             return;
         }
         const repo = await RepositoryFactory.getInstanceAsync();
-        const permissionSet = await repo.PermissionSets.select(guild.id, psetId);
+        const permissionSet = await repo.PermissionSets.select(commandExec.guild.id, psetId);
         if (permissionSet === undefined){
-            Command.error('Invalid Permission Set.  Please supply a valid ID.  See permissionset list for all valid sets.', executionParameters);
+            await commandExec.errorAsync('Invalid Permission Set.  Please supply a valid ID.  See permissionset list for all valid sets.');
             return;
         }
 
         const psetArg = args.shift();
         if (psetArg === 'deny'){
-            await PermissionSetCommand.deny(guild, args, permissionSet, staffLog, executionParameters);
+            await PermissionSetCommand.deny(args, permissionSet, commandExec);
             return;
         }
         if (psetArg === 'allow'){
-            await PermissionSetCommand.allow(guild, args, permissionSet, staffLog, executionParameters);
+            await PermissionSetCommand.allow(args, permissionSet, commandExec);
             return;
         }
         if (psetArg !== undefined) {
-            Command.error('Unknown argument.  Please use permissionset <ID> [allow|deny] <role|channel ID/mention>', executionParameters);
+            await commandExec.errorAsync('Unknown argument.  Please use permissionset <ID> [allow|deny] <role|channel ID/mention>');
             return;
         }
 
-        const setItems = await repo.PermissionSets.selectItems(guild.id, psetId);
+        const setItems = await repo.PermissionSets.selectItems(commandExec.guild.id, psetId);
         const roleWhitelist = setItems.filter(x=> x.object_type == "Role" && x.allow).map(PermissionSetCommand.getMention);
         const roleBlacklist = setItems.filter(x=> x.object_type == "Role" && !x.allow).map(PermissionSetCommand.getMention);
         const channelWhitelist = setItems.filter(x=> x.object_type == "Channel" && x.allow).map(PermissionSetCommand.getMention);
@@ -156,7 +149,7 @@ class PermissionSetCommand extends Command {
         const embed = new MessageEmbed()
             .setTitle(`Permission Set ${psetId}`)
             .setTimestamp()
-            .setColor(guild.me.displayHexColor)
+            .setColor(commandExec.me.displayHexColor)
             .setFooter('permissionset <ID> [allow|deny] <role|channel ID/mention>')
             .setDescription(permissionSet.name);
         if (permissionSet.useRoleWhitelist){
@@ -174,57 +167,59 @@ class PermissionSetCommand extends Command {
         
         // TODO : count of commands/autoresponders in this permission set?
         
-        Command.send(embed, executionParameters);
+        await commandExec.sendAsync(embed);
         
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 
-    private static deny = async (guild: Guild, args: string[], permissionSet: PermissionSetModel, staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static deny = async (args: string[], permissionSet: PermissionSetModel, commandExec: CommandExecutionParameters) : Promise<void> => {
         const id = args.shift();
         if (id === undefined) {
-            Command.error('Unknown argument.  Please use permissionset <ID> [allow|deny] <role|channel ID/mention>', executionParameters);
+            await commandExec.errorAsync('Unknown argument.  Please use permissionset <ID> [allow|deny] <role|channel ID/mention>');
             return;
         }
-        const setItem = PermissionSetCommand.extractPermissionSetItem(guild, id);
+        const setItem = PermissionSetCommand.extractPermissionSetItem(commandExec.guild, id);
         if (setItem === undefined){
-            Command.error('Invalid role or channel ID/mention.', executionParameters);
+            await commandExec.errorAsync('Invalid role or channel ID/mention.');
             return;
         }
         const repo = await RepositoryFactory.getInstanceAsync();
-        await repo.PermissionSets.blacklist(guild.id, permissionSet.set_id, setItem.object_type, setItem.object_id);
+        await repo.PermissionSets.blacklist(commandExec.guild.id, permissionSet.set_id, setItem.object_type, setItem.object_id);
 
         const mention = PermissionSetCommand.getMention(setItem);
-        Command.send(`${setItem.object_type} ${mention} added to blacklist for permission set ${permissionSet.set_id} (${permissionSet.name})`, executionParameters);
+        await commandExec.sendAsync(`${setItem.object_type} ${mention} added to blacklist for permission set ${permissionSet.set_id} (${permissionSet.name})`);
         
-        if (staffLog === null) return;
-        staffLog.addField('Set ID', permissionSet.set_id, true);
-        staffLog.addField('Set Name', permissionSet.name, true);
-        staffLog.addField('Blacklisted', mention, true);
-        await staffLog.send();
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Set ID', permissionSet.set_id, true);
+        commandLog.addField('Set Name', permissionSet.name, true);
+        commandLog.addField('Blacklisted', mention, true);
+        await commandExec.logAsync(commandLog);
     }
 
-    private static allow = async (guild: Guild, args: string[], permissionSet: PermissionSetModel, staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static allow = async (args: string[], permissionSet: PermissionSetModel, commandExec: CommandExecutionParameters) : Promise<void> => {
         const id = args.shift();
         if (id === undefined) {
-            Command.error('Unknown argument.  Please use permissionset <ID> [allow|deny] <role|channel ID/mention>', executionParameters);
+            await commandExec.errorAsync('Unknown argument.  Please use permissionset <ID> [allow|deny] <role|channel ID/mention>');
             return;
         }
-        const setItem = PermissionSetCommand.extractPermissionSetItem(guild, id);
+        const setItem = PermissionSetCommand.extractPermissionSetItem(commandExec.guild, id);
         if (setItem === undefined){
-            Command.error('Invalid role or channel ID/mention.', executionParameters);
+            await commandExec.errorAsync('Invalid role or channel ID/mention.');
             return;
         }
         const repo = await RepositoryFactory.getInstanceAsync();
-        await repo.PermissionSets.whitelist(guild.id, permissionSet.set_id, setItem.object_type, setItem.object_id);
+        await repo.PermissionSets.whitelist(commandExec.guild.id, permissionSet.set_id, setItem.object_type, setItem.object_id);
 
         const mention = PermissionSetCommand.getMention(setItem);
-        Command.send(`${setItem.object_type} ${mention} added to whitelist for permission set ${permissionSet.set_id} (${permissionSet.name})`, executionParameters);
+        await commandExec.sendAsync(`${setItem.object_type} ${mention} added to whitelist for permission set ${permissionSet.set_id} (${permissionSet.name})`);
 
-        if (staffLog === null) return;
-        staffLog.addField('Set ID', permissionSet.set_id, true);
-        staffLog.addField('Set Name', permissionSet.name, true);
-        staffLog.addField('Whitelisted', mention, true);
-        await staffLog.send();
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Set ID', permissionSet.set_id, true);
+        commandLog.addField('Set Name', permissionSet.name, true);
+        commandLog.addField('Whitelisted', mention, true);
+        await commandExec.logAsync(commandLog);
     }
 
     private static extractPermissionSetItem = (guild: Guild, mention: string) : PermissionSetItemModel|undefined => {

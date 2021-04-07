@@ -19,10 +19,8 @@ class HelpCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.member === null) return;
-        const guild = message.guild;
-        if (guild.me === null) return;
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        const guild = commandExec.guild;
 
         const repo = await RepositoryFactory.getInstanceAsync();
         const commands = await repo.Commands.selectAll(guild.id);
@@ -32,10 +30,10 @@ class HelpCommand extends Command {
             commandName = args.shift();
         }
 
-        const commandHelpers = await HelpCommand.getCommandHelpers(commandName, commands, guild, message.member);
+        const commandHelpers = await HelpCommand.getCommandHelpers(commandName, commands, guild, commandExec.messageMember);
         const embed = new MessageEmbed()
             .setTimestamp()
-            .setColor(guild.me.displayHexColor);
+            .setColor(commandExec.me.displayHexColor);
         if (commandHelpers.length === 1 && commandHelpers[0].category === undefined && commandHelpers[0].commands.length === 1) {
             const command = commandHelpers[0].commands[0];
             const rCommand = ReservedCommandList.find(rc => rc.name == command.command);
@@ -67,7 +65,7 @@ class HelpCommand extends Command {
             });
         }
 
-        Command.send(embed, executionParameters);
+        await commandExec.sendAsync(embed);
     }
 
     private static getCommandHelpers = async (commandName: string|undefined, commands: CommandModel[], guild: Guild, member: GuildMember|null) : Promise<CommandCategory[]> => {

@@ -1,5 +1,4 @@
 import { Collection, DMChannel, GuildMember, Message, TextChannel } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 
@@ -16,12 +15,9 @@ class PurgeCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null) return;
-        const guild = message.guild;
-        const channel = message.channel;
-        if (guild.me === null) return;
-        const staffLog = StaffLog.FromCommandContext(this, guild, message.author, channel, message.content, executionParameters);
+    run = async (message: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        const guild = commandExec.guild;
+        const channel = commandExec.messageChannel;
 
         let targetChannel = Command.extractChannelMention(guild, args[0]) || guild.channels.cache.get(args[0]);
         if (targetChannel !== undefined) {
@@ -31,12 +27,12 @@ class PurgeCommand extends Command {
             targetChannel = channel;
         }
         if (targetChannel === null || targetChannel === undefined || !(targetChannel instanceof TextChannel)) {
-            Command.error('Invalid channel.', executionParameters);
+            await commandExec.errorAsync('Invalid channel.');
             return;
         }
 
         if (targetChannel.type !== "text" || !targetChannel.viewable) {
-            Command.error('Invalid channel.', executionParameters);
+            await commandExec.errorAsync('Invalid channel.');
             return;
         }
 
@@ -47,7 +43,7 @@ class PurgeCommand extends Command {
 
         const amount = parseInt(args[0]);
         if (isNaN(amount) === true || !amount || amount < 0 || amount > 100) {
-            Command.error('Please specify a purge count (1-100)', executionParameters);
+            await commandExec.errorAsync('Please specify a purge count (1-100)');
             return;
         }
 
@@ -56,7 +52,7 @@ class PurgeCommand extends Command {
         if (reason.length > 1024) reason = reason.slice(0, 1021) + '...';
 
         if (!PurgeCommand.canDelete(targetChannel)) {
-            Command.error('Cannot delete messages in this channel', executionParameters);
+            await commandExec.errorAsync('Cannot delete messages in this channel');
             return;
         }
 
@@ -72,17 +68,18 @@ class PurgeCommand extends Command {
 
         const deletedMessageCount = await PurgeCommand.bulkDelete(targetChannel, target, amount);
         
-        if (staffLog === null) return;
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
         
-        staffLog.addField('Channel', targetChannel, true);
+        commandLog.addField('Channel', targetChannel, true);
         if (target !== undefined){
-            staffLog.addField('Member', target, true);
+            commandLog.addField('Member', target, true);
         }
-        staffLog.addField('Deleted Count', deletedMessageCount, true);
+        commandLog.addField('Deleted Count', deletedMessageCount, true);
         if (reason) 
-            staffLog.addField('Reason', reason, reason === '`None`'); // If the reason isn't "None" give it its own line
+            commandLog.addField('Reason', reason, reason === '`None`'); // If the reason isn't "None" give it its own line
         
-        await staffLog.send();
+        await commandExec.logAsync(commandLog);
     }
 
     public static bulkDelete = async (channel: TextChannel, member: GuildMember | undefined, amount: number) : Promise<number> => {

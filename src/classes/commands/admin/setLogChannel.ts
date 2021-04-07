@@ -19,21 +19,19 @@ class SetLogChannelCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        const guild = message.guild;
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const repo = await RepositoryFactory.getInstanceAsync();
 
-        let channel = Command.extractChannelMention(guild, args[0]) || guild.channels.cache.get(args[0]);
+        let channel = Command.extractChannelMention(commandExec.guild, args[0]) || commandExec.guild.channels.cache.get(args[0]);
 
-        await repo.Guilds.updateStaffLogChannel(guild.id, channel?.id || null);
+        await repo.Guilds.updateStaffLogChannel(commandExec.guild.id, channel?.id || null);
 
-        GuildCache.ClearCache(guild.id);
+        GuildCache.ClearCache(commandExec.guild.id);
 
         if (channel) {
-            Command.send(`Staff Log channel set to <#${channel.id}>`, executionParameters);
+            await commandExec.sendAsync(`Staff Log channel set to <#${channel.id}>`);
         } else {
-            Command.send(`Staff Log channel cleared (logging disabled)`, executionParameters);
+            await commandExec.sendAsync(`Staff Log channel cleared (logging disabled)`);
         }
     }
 }

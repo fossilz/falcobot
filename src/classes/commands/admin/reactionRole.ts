@@ -1,5 +1,4 @@
 import { Guild, Message, MessageEmbed } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 import RepositoryFactory from "../../RepositoryFactory";
@@ -19,54 +18,51 @@ class ReactionRoleCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-
-        const staffLog = StaffLog.FromCommandContext(this, message.guild, message.author, message.channel, message.content, executionParameters);
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
 
         const initialParam = args.shift();
         switch (initialParam) {
             case 'add':
-                await ReactionRoleCommand.add(message.guild, args, staffLog, executionParameters);
+                await ReactionRoleCommand.add(args, commandExec);
                 return;
             case 'list':
-                await ReactionRoleCommand.list(message.guild, args, staffLog, executionParameters);
+                await ReactionRoleCommand.list(commandExec);
                 return;
             case 'pending':
-                await ReactionRoleCommand.pending(message.guild, args, staffLog, executionParameters);
+                await ReactionRoleCommand.pending(args, commandExec);
                 return;
             case 'delete':
-                await ReactionRoleCommand.delete(message.guild, args, staffLog, executionParameters);
+                await ReactionRoleCommand.delete(args, commandExec);
                 return;
         }
-        Command.send('This should have a syntax helper, but it doesn\'t yet', executionParameters);
+        await commandExec.sendAsync('This should have a syntax helper, but it doesn\'t yet');
     }
 
-    private static add = async (guild: Guild, args: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static add = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         if (args.length !== 4) {
-            Command.error('Invalid add syntax.  Proper syntax is !reactionRole add <channel ID/mention> <message ID> <emoji> <role ID/mention>', executionParameters);
+            await commandExec.errorAsync('Invalid add syntax.  Proper syntax is !reactionRole add <channel ID/mention> <message ID> <emoji> <role ID/mention>');
             return;
         }
 
-        const channel = Command.extractChannelMention(guild, args[0]);
+        const channel = Command.extractChannelMention(commandExec.guild, args[0]);
         if (channel === undefined) {
-            Command.error('Invalid channel.', executionParameters);
+            await commandExec.errorAsync('Invalid channel.');
             return;
         }
         const messageID = args[1];
-        const emoji = Command.extractEmoji(guild, args[2]);
+        const emoji = Command.extractEmoji(commandExec.guild, args[2]);
         if (emoji === undefined) {
-            Command.error('Invalid emoji.', executionParameters);
+            await commandExec.errorAsync('Invalid emoji.');
             return;
         }
-        const role = Command.extractRoleMention(guild, args[3]);
+        const role = Command.extractRoleMention(commandExec.guild, args[3]);
         if (role === undefined) {
-            Command.error('Invalid role.', executionParameters);
+            await commandExec.errorAsync('Invalid role.');
             return;
         }
 
         var rrModel = new ReactionRoleModel();
-        rrModel.guild_id = guild.id;
+        rrModel.guild_id = commandExec.guild.id;
         rrModel.channel_id = channel.id;
         rrModel.message_id = messageID;
         rrModel.emoji = emoji;
@@ -78,31 +74,32 @@ class ReactionRoleCommand extends Command {
             rrModel.reactionrole_id = reactionrole_id;
 
             // Wire up the listener
-            await ReactionRoleHandler.SetupReactionRoleListenerAsync(guild, rrModel, repo);
-            Command.send(`Reaction role ${reactionrole_id} created.`, executionParameters);
+            await ReactionRoleHandler.SetupReactionRoleListenerAsync(commandExec.guild, rrModel, repo);
+            await commandExec.sendAsync(`Reaction role ${reactionrole_id} created.`);
         } else {
-            Command.error('Could not create reaction role.', executionParameters);
+            await commandExec.errorAsync('Could not create reaction role.');
         }
 
-        if (staffLog === null) return;
-        staffLog.addField('Operation', 'add', true);
-        staffLog.addField('Reaction Role ID', reactionrole_id, true);
-        staffLog.addField('Channel', channel, true);
-        staffLog.addField('Message', messageID, true);
-        staffLog.addField('Emoji', emoji, true);
-        staffLog.addField('Role', role, true);
-        await staffLog.send();
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Operation', 'add', true);
+        commandLog.addField('Reaction Role ID', reactionrole_id, true);
+        commandLog.addField('Channel', channel, true);
+        commandLog.addField('Message', messageID, true);
+        commandLog.addField('Emoji', emoji, true);
+        commandLog.addField('Role', role, true);
+        await commandExec.logAsync(commandLog);
     }
 
-    private static list = async (guild: Guild, _: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static list = async (commandExec: CommandExecutionParameters) : Promise<void> => {
         const repo = await RepositoryFactory.getInstanceAsync();
-        const rrList = await repo.ReactionRoles.selectAll(guild.id);
+        const rrList = await repo.ReactionRoles.selectAll(commandExec.guild.id);
         const listEmbed = new MessageEmbed()
             .setTitle('Reaction Roles')
             .setTimestamp();
         if (rrList.length === 0){
             listEmbed.setDescription('There are no reaction roles setup.');
-            Command.send(listEmbed, executionParameters);
+            await commandExec.sendAsync(listEmbed);
             return;
         }
         let channelId: string|null = null;
@@ -112,7 +109,7 @@ class ReactionRoleCommand extends Command {
             const cid = rr.channel_id;
             if (cid !== channelId) {
                 // Changed channels (potentially fields)
-                ReactionRoleCommand.addChannelField(guild, channelId, listEmbed, fieldString);
+                ReactionRoleCommand.addChannelField(commandExec.guild, channelId, listEmbed, fieldString);
                 fieldString = null;
                 channelId = cid;
             }
@@ -121,10 +118,10 @@ class ReactionRoleCommand extends Command {
             } else fieldString = '';
             fieldString = fieldString + `${rr.reactionrole_id}: [${rr.message_id}] ${rr.emoji} <@&${rr.role_id}>`;
         }
-        ReactionRoleCommand.addChannelField(guild, channelId, listEmbed, fieldString);
-        Command.send(listEmbed, executionParameters);
+        ReactionRoleCommand.addChannelField(commandExec.guild, channelId, listEmbed, fieldString);
+        await commandExec.sendAsync(listEmbed);
 
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 
     private static addChannelField = (guild: Guild, channelId: string|null, embed: MessageEmbed, fieldString: string|null) => {
@@ -134,71 +131,72 @@ class ReactionRoleCommand extends Command {
         embed.addField(channelName + " (" + channelId + ")", fieldString);
     }
 
-    private static pending = async (guild: Guild, args: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static pending = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const rr_id = args.shift();
         if (rr_id === undefined){
-            Command.error('Proper syntax is !reactionRole pending <reaction role id>', executionParameters);
+            await commandExec.errorAsync('Proper syntax is !reactionRole pending <reaction role id>');
             return;
         }
         let reactionrole_id: number;
         try {
             reactionrole_id = parseInt(rr_id);
         } catch (err) {
-            Command.error('Invalid Reaction Role ID.  Proper syntax is !reactionRole pending <reaction role id>', executionParameters);
+            await commandExec.errorAsync('Invalid Reaction Role ID.  Proper syntax is !reactionRole pending <reaction role id>');
             return;
         }
         if (isNaN(reactionrole_id)) {
-            Command.error('Invalid Reaction Role ID.  Proper syntax is !reactionRole pending <reaction role id>', executionParameters);
+            await commandExec.errorAsync('Invalid Reaction Role ID.  Proper syntax is !reactionRole pending <reaction role id>');
             return;
         }
 
         const repo = await RepositoryFactory.getInstanceAsync();
-        const count = await repo.MemberReactionRoles.getUnworkedCount(guild.id, reactionrole_id);
-        Command.send(`There are ${count} roles pending assignment for reaction role ${reactionrole_id}.`, executionParameters);
+        const count = await repo.MemberReactionRoles.getUnworkedCount(commandExec.guild.id, reactionrole_id);
+        await commandExec.sendAsync(`There are ${count} roles pending assignment for reaction role ${reactionrole_id}.`);
 
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 
-    private static delete = async (guild: Guild, args: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        const guild_id = guild.id;
+    private static delete = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        const guild_id = commandExec.guild.id;
 
         const rr_id = args.shift();
         if (rr_id === undefined){
-            Command.error('Proper syntax is !reactionRole delete <reaction role id>', executionParameters);
+            await commandExec.errorAsync('Proper syntax is !reactionRole delete <reaction role id>');
             return;
         }
         let reactionrole_id: number;
         try {
             reactionrole_id = parseInt(rr_id);
         } catch (err) {
-            Command.error('Invalid Reaction Role ID.  Proper syntax is !reactionRole delete <reaction role id>', executionParameters);
+            await commandExec.errorAsync('Invalid Reaction Role ID.  Proper syntax is !reactionRole delete <reaction role id>');
             return;
         }
         if (isNaN(reactionrole_id)) {
-            Command.error('Invalid Reaction Role ID.  Proper syntax is !reactionRole delete <reaction role id>', executionParameters);
+            await commandExec.errorAsync('Invalid Reaction Role ID.  Proper syntax is !reactionRole delete <reaction role id>');
             return;
         }
 
         const repo = await RepositoryFactory.getInstanceAsync();
         const rr = await repo.ReactionRoles.select(guild_id, reactionrole_id);
         if (rr === undefined){
-            Command.error('Invalid Reaction Role ID.  Proper syntax is !reactionRole delete <reaction role id>', executionParameters);
+            await commandExec.errorAsync('Invalid Reaction Role ID.  Proper syntax is !reactionRole delete <reaction role id>');
             return;
         }
 
         ReactionRoleHandler.StopListening(guild_id, reactionrole_id);
         await repo.MemberReactionRoles.deleteReactionRole(guild_id, reactionrole_id);
         await repo.ReactionRoles.delete(guild_id, reactionrole_id);
-        Command.send(`Reaction role ${reactionrole_id} deleted.`, executionParameters);
+        await commandExec.sendAsync(`Reaction role ${reactionrole_id} deleted.`);
 
-        if (staffLog === null) return;
-        staffLog.addField('Operation', 'delete', true);
-        staffLog.addField('Reaction Role ID', reactionrole_id, true);
-        staffLog.addField('Channel', guild.channels.cache.get(rr.channel_id), true);
-        staffLog.addField('Message', rr.message_id, true);
-        staffLog.addField('Emoji', rr.emoji, true);
-        staffLog.addField('Role', guild.roles.cache.get(rr.role_id), true);
-        await staffLog.send();
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Operation', 'delete', true);
+        commandLog.addField('Reaction Role ID', reactionrole_id, true);
+        commandLog.addField('Channel', commandExec.guild.channels.cache.get(rr.channel_id), true);
+        commandLog.addField('Message', rr.message_id, true);
+        commandLog.addField('Emoji', rr.emoji, true);
+        commandLog.addField('Role', commandExec.guild.roles.cache.get(rr.role_id), true);
+        await commandExec.logAsync(commandLog);
     }
 }
 

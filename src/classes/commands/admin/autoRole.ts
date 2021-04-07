@@ -1,5 +1,4 @@
 import { Guild, Message, MessageEmbed, Role } from "discord.js";
-import { StaffLog } from "../../behaviors/StaffLog";
 import { Command } from "../Command";
 import { CommandExecutionParameters } from "../../behaviors/CommandHandler";
 import RepositoryFactory from "../../RepositoryFactory";
@@ -20,45 +19,41 @@ class AutoRoleCommand extends Command {
         });
     }
 
-    run = async (message: Message, args: string[], executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        if (message.guild === null || message.guild.me === null || message.member === null) return;
-        
-        const staffLog = StaffLog.FromCommandContext(this, message.guild, message.author, message.channel, message.content, executionParameters);
-
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const initialParam = args.shift();
         switch (initialParam) {
             case 'add':
-                await AutoRoleCommand.add(message.guild, args, "ADD", staffLog, executionParameters);
+                await AutoRoleCommand.add(args, "ADD", commandExec);
                 return;
             case 'remove':
-                await AutoRoleCommand.add(message.guild, args, "REMOVE", staffLog, executionParameters);
+                await AutoRoleCommand.add(args, "REMOVE", commandExec);
                 return;
             case 'list':
-                await AutoRoleCommand.list(message.guild, args, staffLog, executionParameters);
+                await AutoRoleCommand.list(commandExec);
                 return;
             case 'delete':
-                await AutoRoleCommand.delete(message.guild, args, staffLog, executionParameters);
+                await AutoRoleCommand.delete(args, commandExec);
                 return;
         }
-        message.channel.send('This should have a syntax helper, but it doesn\'t yet');
+        await commandExec.sendAsync('This should have a syntax helper, but it doesn\'t yet');
     }
 
-    private static add = async (guild: Guild, args: string[], add_remove: AddRemoveString, staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static add = async (args: string[], add_remove: AddRemoveString, commandExec: CommandExecutionParameters) : Promise<void> => {
         const ar_verb = add_remove.toLowerCase();
 
         if (args.length < 1 || args.length > 3) {
-            Command.error(`Invalid ${ar_verb} syntax.  Proper syntax is !autoRole ${ar_verb} <role ID/mention> [onadd|onremove] [role ID/mention]`, executionParameters);
+            commandExec.errorAsync(`Invalid ${ar_verb} syntax.  Proper syntax is !autoRole ${ar_verb} <role ID/mention> [onadd|onremove] [role ID/mention]`);
             return;
         }
 
         const roleArg = args.shift();
         if (roleArg === undefined){
-            Command.error(`Invalid ${ar_verb} syntax.  Proper syntax is !autoRole ${ar_verb} <role ID/mention> [onadd|onremove] [role ID/mention]`, executionParameters);
+            commandExec.errorAsync(`Invalid ${ar_verb} syntax.  Proper syntax is !autoRole ${ar_verb} <role ID/mention> [onadd|onremove] [role ID/mention]`);
             return;
         }
-        const role = Command.extractRoleMention(guild, roleArg);
+        const role = Command.extractRoleMention(commandExec.guild, roleArg);
         if (role === undefined) {
-            Command.error('Invalid role.', executionParameters);
+            commandExec.errorAsync('Invalid role.');
             return;
         }
         const triggered = args.length > 0;
@@ -77,12 +72,12 @@ class AutoRoleCommand extends Command {
                 trigger_event = 'ADD';
             }
             if (triggerArg !== undefined) {
-                trigger_role = Command.extractRoleMention(guild, triggerArg);
+                trigger_role = Command.extractRoleMention(commandExec.guild, triggerArg);
             }
         }
 
         var rrModel = new AutoRoleModel();
-        rrModel.guild_id = guild.id;
+        rrModel.guild_id = commandExec.guild.id;
         rrModel.role_id = role.id;
         rrModel.add_remove = add_remove;
         if (trigger_role !== undefined && trigger_event !== undefined) {
@@ -93,30 +88,31 @@ class AutoRoleCommand extends Command {
         const repo = await RepositoryFactory.getInstanceAsync();
         const autorole_id = await repo.AutoRoles.insert(rrModel);
         if (autorole_id !== undefined) {
-            Command.send(`Auto role ${autorole_id} created.`, executionParameters);
+            commandExec.sendAsync(`Auto role ${autorole_id} created.`);
         } else {
-            Command.error('Could not create auto role.', executionParameters);
+            commandExec.errorAsync('Could not create auto role.');
         }
 
-        if (staffLog === null) return;
-        staffLog.addField('Operation', 'create', true);
-        staffLog.addField('Auto Role ID', autorole_id, true);
-        staffLog.addField('Action', `${ar_verb} <@&${role.id}>`, true);
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Operation', 'create', true);
+        commandLog.addField('Auto Role ID', autorole_id, true);
+        commandLog.addField('Action', `${ar_verb} <@&${role.id}>`, true);
         if (trigger_role !== undefined && trigger_event !== undefined) {
-            staffLog.addField('Trigger', `<@&${trigger_role.id}> ${AutoRoleCommand.formatAddRemoveVerb(trigger_event)}`);
+            commandLog.addField('Trigger', `<@&${trigger_role.id}> ${AutoRoleCommand.formatAddRemoveVerb(trigger_event)}`);
         }
-        await staffLog.send();
+        await commandExec.logAsync(commandLog);
     }
 
-    private static list = async (guild: Guild, _: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
+    private static list = async (commandExec: CommandExecutionParameters) : Promise<void> => {
         const repo = await RepositoryFactory.getInstanceAsync();
-        const arList = await repo.AutoRoles.selectAll(guild.id);
+        const arList = await repo.AutoRoles.selectAll(commandExec.guild.id);
         const listEmbed = new MessageEmbed()
             .setTitle('Auto Roles')
             .setTimestamp();
         if (arList.length === 0){
             listEmbed.setDescription('There are no auto roles setup.');
-            Command.send(listEmbed, executionParameters);
+            commandExec.sendAsync(listEmbed);
             return;
         }
         let roleId: string|null = null;
@@ -126,7 +122,7 @@ class AutoRoleCommand extends Command {
             const rid = ar.role_id;
             if (rid !== roleId) {
                 // Changed roles (potentially fields)
-                AutoRoleCommand.addRoleField(guild, roleId, listEmbed, fieldString);
+                AutoRoleCommand.addRoleField(commandExec.guild, roleId, listEmbed, fieldString);
                 fieldString = null;
                 roleId = rid;
             }
@@ -135,10 +131,10 @@ class AutoRoleCommand extends Command {
             } else fieldString = '';
             fieldString = fieldString + `${ar.autorole_id}: ${AutoRoleCommand.formatTriggerEvent(ar)}`;
         }
-        AutoRoleCommand.addRoleField(guild, roleId, listEmbed, fieldString);
-        Command.send(listEmbed, executionParameters);
+        AutoRoleCommand.addRoleField(commandExec.guild, roleId, listEmbed, fieldString);
+        commandExec.sendAsync(listEmbed);
 
-        await staffLog?.send();
+        await commandExec.logDefaultAsync();
     }
 
     private static addRoleField = (guild: Guild, roleId: string|null, embed: MessageEmbed, fieldString: string|null) => {
@@ -162,44 +158,45 @@ class AutoRoleCommand extends Command {
         return "";
     }
 
-    private static delete = async (guild: Guild, args: string[], staffLog: StaffLog|null, executionParameters?: CommandExecutionParameters) : Promise<void> => {
-        const guild_id = guild.id;
+    private static delete = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+        const guild_id = commandExec.guild.id;
 
         const ar_id = args.shift();
         if (ar_id === undefined){
-            Command.error('Proper syntax is !autoRole delete <auto role id>', executionParameters);
+            commandExec.errorAsync('Proper syntax is !autoRole delete <auto role id>');
             return;
         }
         let autorole_id: number;
         try {
             autorole_id = parseInt(ar_id);
         } catch (err) {
-            Command.error('Invalid Auto Role ID.  Proper syntax is !autoRole delete <auto role id>', executionParameters);
+            commandExec.errorAsync('Invalid Auto Role ID.  Proper syntax is !autoRole delete <auto role id>');
             return;
         }
         if (isNaN(autorole_id)) {
-            Command.error('Invalid Auto Role ID.  Proper syntax is !autoRole delete <auto role id>', executionParameters);
+            commandExec.errorAsync('Invalid Auto Role ID.  Proper syntax is !autoRole delete <auto role id>');
             return;
         }
 
         const repo = await RepositoryFactory.getInstanceAsync();
         const ar = await repo.AutoRoles.select(guild_id, autorole_id);
         if (ar === undefined){
-            Command.error('Invalid Auto Role ID.  Proper syntax is !autoRole delete <auto role id>', executionParameters);
+            commandExec.errorAsync('Invalid Auto Role ID.  Proper syntax is !autoRole delete <auto role id>');
             return;
         }
 
         await repo.AutoRoles.delete(guild_id, autorole_id);
-        Command.send(`Auto role ${autorole_id} deleted.`, executionParameters);
+        commandExec.sendAsync(`Auto role ${autorole_id} deleted.`);
 
-        if (staffLog === null) return;
-        staffLog.addField('Operation', 'delete', true);
-        staffLog.addField('Auto Role ID', autorole_id, true);
-        staffLog.addField('Action', `${ar.add_remove} <@&${ar.role_id}>`, true);
+        const commandLog = commandExec.getCommandLog();
+        if (commandLog === null) return;
+        commandLog.addField('Operation', 'delete', true);
+        commandLog.addField('Auto Role ID', autorole_id, true);
+        commandLog.addField('Action', `${ar.add_remove} <@&${ar.role_id}>`, true);
         if (ar.trigger_role_id !== null && ar.trigger_on_add_remove !== null) {
-            staffLog.addField('Trigger', `<@&${ar.trigger_role_id}> ${AutoRoleCommand.formatAddRemoveVerb(ar.trigger_on_add_remove)}`);
+            commandLog.addField('Trigger', `<@&${ar.trigger_role_id}> ${AutoRoleCommand.formatAddRemoveVerb(ar.trigger_on_add_remove)}`);
         }
-        await staffLog.send();
+        await commandExec.logAsync(commandLog);
     }
 }
 
