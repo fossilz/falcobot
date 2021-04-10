@@ -50,6 +50,9 @@ class HelpCommand extends Command {
                 if( rCommand.examples.length > 0) {
                     embed.addField('Examples', rCommand.examples.join('\n'));
                 }
+                if (rCommand.childCommands !== undefined && rCommand.childCommands.length > 0){
+                    embed.addField('Child Commands', rCommand.childCommands.join(' '));
+                }
             } else {
                 // Custom command
                 embed.setTitle(command.command);
@@ -69,7 +72,7 @@ class HelpCommand extends Command {
     }
 
     private static getCommandHelpers = async (commandName: string|undefined, commands: CommandModel[], guild: Guild, member: GuildMember|null) : Promise<CommandCategory[]> => {
-        const specificCommand = await HelpCommand.getAllowedCommand(commands.find((c) => c.command === commandName), guild, member);
+        const specificCommand = await HelpCommand.getAllowedCommand(commands.find((c) => c.command === commandName), guild, member, false);
         if (specificCommand != undefined) {
             const returnCat = new CommandCategory();
             returnCat.commands.push(specificCommand);
@@ -78,13 +81,13 @@ class HelpCommand extends Command {
         const categories = Array.from(new Set(ReservedCommandList.map(cs => cs.category)));
         const resultSet: CommandCategory[] = [];
         await asyncForEach(categories, async (category) => {
-            const rcommands = ReservedCommandList.filter(x => x.category == category);
+            const rcommands = ReservedCommandList.filter(x => x.parentCommand === undefined && x.category == category);
             const ccat = new CommandCategory();
             ccat.category = category;
             await asyncForEach(rcommands, async (command) => {
                 const cModel = commands.find(c => c.command == command.name);
                 if (cModel === undefined) return;
-                const allowedCommand = await HelpCommand.getAllowedCommand(cModel, guild, member);
+                const allowedCommand = await HelpCommand.getAllowedCommand(cModel, guild, member, true);
                 if (allowedCommand === undefined) return;
                 ccat.commands.push(allowedCommand);
             });
@@ -97,7 +100,7 @@ class HelpCommand extends Command {
             const customCategory = new CommandCategory();
             customCategory.category = 'Custom';
             await asyncForEach(customCommands, async (command) => {
-                const allowedCommand = await HelpCommand.getAllowedCommand(command, guild, member);
+                const allowedCommand = await HelpCommand.getAllowedCommand(command, guild, member, false);
                 if (allowedCommand === undefined) return;
                 customCategory.commands.push(allowedCommand);
             });
@@ -108,9 +111,10 @@ class HelpCommand extends Command {
         return resultSet;
     }
 
-    private static getAllowedCommand = async (command: CommandModel | undefined, guild: Guild, member: GuildMember|null) : Promise<CommandModel|undefined> => {
+    private static getAllowedCommand = async (command: CommandModel | undefined, guild: Guild, member: GuildMember|null, rootOnly: boolean) : Promise<CommandModel|undefined> => {
         if (command === undefined) return;
-        var pModel = await CommandHandler.GetCommandExecutionPermissions(guild, command.command, member, undefined, true);
+        var pModel = await CommandHandler.GetCommandExecutionPermissions(guild, command.command, rootOnly, member, undefined, true);
+        if (pModel === undefined) return;
         if (!pModel.canExecute) return;
         if (pModel.command === null) return;
         return pModel.command;

@@ -1,8 +1,10 @@
 import { Guild, GuildChannel, GuildMember, Message, PermissionString, Role } from 'discord.js';
-import { CommandExecutionParameters } from '../behaviors/CommandHandler';
+import { CommandExecutionParameters, CommandHandler } from '../behaviors/CommandHandler';
 
 export interface ICommandSettings {
     name: string;
+    parentCommand?: string;
+    childCommands?: string[];
     category: string;
     usage?: string;
     description?: string;
@@ -17,6 +19,8 @@ export interface ICommandSettings {
 
 export abstract class Command {
     public name: string;
+    public parentCommand: string|undefined;
+    public childCommands: string[]|undefined;
     public category: string;
     public usage: string;
     public description: string;
@@ -30,6 +34,8 @@ export abstract class Command {
 
     constructor(options: ICommandSettings) {
         this.name = options.name;
+        this.parentCommand = options.parentCommand;
+        this.childCommands = options.childCommands;
         this.category = options.category;
         this.usage = options.usage || options.name;
         this.description = options.description || '';
@@ -101,5 +107,9 @@ export abstract class Command {
             return a?.id;
         }
         return mention;
+    }
+
+    protected runChildCommandAsync = async (command: string, message: Message, args: string[], commandExec: CommandExecutionParameters) => {
+        await CommandHandler.RunCommandArguments(commandExec.guild, message, command, args, commandExec.messageMember, commandExec.messageChannel, false);
     }
 }

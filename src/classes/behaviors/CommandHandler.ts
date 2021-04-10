@@ -1,25 +1,12 @@
-import { timeStamp } from "console";
-import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, GuildChannel, APIMessageContentResolvable, MessageAdditions, User } from "discord.js";
-import NodeCache from "node-cache";
+import { Guild, Message, GuildMember, TextChannel, DMChannel, NewsChannel, APIMessageContentResolvable, MessageAdditions, User } from "discord.js";
+import { CachedCommandModel, CommandCache } from "../cache/CommandCache";
 import GuildCache from "../cache/GuildCache";
-import ReservedCommandList from '../commands';
+import { Command } from "../commands/Command";
 import CommandModel from "../dataModels/CommandModel";
-import RepositoryFactory from "../RepositoryFactory";
 import CommandLog from "./CommandLog";
 import { PermissionSetHandler, PermissionCheckResult, PermissionCheckResultType } from './PermissionSetHandler';
 
 export class CommandHandler {
-    private static _cache: NodeCache;
-    private static _semaphore = false;
-
-    private static GetCache() {
-        if (!CommandHandler._cache && !CommandHandler._semaphore) {
-            CommandHandler._semaphore = true;
-            CommandHandler._cache = new NodeCache();
-        }
-        return CommandHandler._cache;
-    }
-
     public static async RunCommand(message: Message){
         if (message.guild === null) {
             // Can't execute commands if this isn't in a guild
@@ -28,24 +15,25 @@ export class CommandHandler {
         const guild = message.guild;
 
         // Check for valid command
-        const prefix = await this.GetPrefixAsync(guild.id);
-        if (prefix === undefined || !this.MessagePrefixed(message, prefix )) {
-            return;
-        }
-        const args = this.GetMessageArguments(message, prefix);
+        const args = await CommandHandler.GetCommandArgumentsFromMessage(guild.id, message.content);
+        if (args === undefined) return;
         const firstArg = args.shift();
         if (firstArg === undefined || firstArg.length === 0){
             return;
         }
         const cmd = firstArg.toLowerCase();
 
-        var commandPermissions = await CommandHandler.GetCommandExecutionPermissions(guild, cmd, message.member, message.channel);
-        if (!commandPermissions.enabled || !commandPermissions.canExecute){
+        await CommandHandler.RunCommandArguments(guild, message, cmd, args, message.member, message.channel, true);
+    }
+
+    public static RunCommandArguments = async (guild: Guild, message: Message, command: string, args: string[], executor: GuildMember|null, channel: TextChannel | DMChannel | NewsChannel, rootOnly: boolean) : Promise<void> => {
+        const commandPermissions = await CommandHandler.GetCommandExecutionPermissions(guild, command, rootOnly, executor, channel);
+        if (commandPermissions === undefined || !commandPermissions.enabled || !commandPermissions.canExecute){
             return;
         }
 
         let deletedMessage: Message|undefined;
-        if (commandPermissions.command?.suppressCommand) {
+        if (commandPermissions.command.suppressCommand) {
             try {
                 deletedMessage = await message.delete();
             } catch (err) {
@@ -54,13 +42,21 @@ export class CommandHandler {
         }
 
         // Run the command
-        const reservedCommand = ReservedCommandList.find((c) => c.name === commandPermissions.command?.command);
-        if (reservedCommand === undefined) {
+        if (commandPermissions.reservedCommand === undefined) {
             console.log('TODO: implement custom command execution:', commandPermissions.command);
             return;
         }
-        const execParams = new CommandExecutionParameters(message, commandPermissions.command);
-        await reservedCommand.run(deletedMessage || message, args, execParams);
+        const execParams = new CommandExecutionParameters(commandPermissions.command, guild, executor, message.author, channel, message.content);
+        await commandPermissions.reservedCommand.run(deletedMessage || message, args, execParams);
+    }
+
+    private static GetCommandArgumentsFromMessage = async(guild_id: string, content: string) : Promise<string[]|undefined> => {
+        const prefix = await CommandHandler.GetPrefixAsync(guild_id);
+        if (prefix === undefined || prefix.length < 1) return; // No configured prefix
+        if (content.length <= prefix.length) return; // Message can't contain prefix
+        if (!content.startsWith(prefix)) return; // Message doesn't start with prefix
+        const msgCommandString = content.slice(prefix.length);
+        return msgCommandString.split(/ +/g);
     }
 
     private static GetPrefixAsync = async (guild_id: string) : Promise<string|undefined> => {
@@ -68,70 +64,32 @@ export class CommandHandler {
         return guild?.prefix;
     }
 
-    private static CommandCacheKey = (guild_id: string) : string => {
-        return `Commands_${guild_id}`;
-    }
-
-    private static GetCommandsAsync = async (guild_id: string) : Promise<CommandModel[]|undefined> => {
-        const cache = CommandHandler.GetCache();
-        const cacheKey = CommandHandler.CommandCacheKey(guild_id);
-        if (!cache.has(cacheKey)){
-            const repo = await RepositoryFactory.getInstanceAsync();
-            const commands = await repo.Commands.selectAll(guild_id);
-            cache.set(cacheKey, commands, 300);
-            return commands;
-        }
-        return cache.get<CommandModel[]>(cacheKey);
-    }
-
-    private static GetCommandAsync = async (guild_id: string, commandName: string) : Promise<CommandModel|undefined> => {
-        const commandList = await CommandHandler.GetCommandsAsync(guild_id);
+    private static GetCommandAsync = async (guild_id: string, commandName: string, rootOnly: boolean) : Promise<CachedCommandModel|undefined> => {
+        const commandList = rootOnly ? 
+            (await CommandCache.GetRootCommandsAsync(guild_id)) :
+            (await CommandCache.GetCommandAsync(guild_id));
         if (commandList === undefined) return;
-        const exactMatch = commandList.find(x => x.command.toLowerCase() == commandName.toLowerCase());
+        const exactMatch = commandList.find(x => x.commandModel.command.toLowerCase() == commandName.toLowerCase());
         if (exactMatch !== undefined) return exactMatch;
-        const aliasMatch = commandList.find(x => x.aliases.includes(commandName.toLowerCase()));
+        const aliasMatch = commandList.find(x => x.commandModel.aliases.includes(commandName.toLowerCase()));
         return aliasMatch;
     }
 
-    public static ClearCommandCache = (guild_id: string) => {
-        const cache = CommandHandler.GetCache();
-        const cacheKey = CommandHandler.CommandCacheKey(guild_id);
-        cache.del(cacheKey);
-    }
-
-    private static MessagePrefixed = (message: Message, prefix: string): boolean => {
-        if (prefix.length === 0){
-            return false;
-        }
-        if (message.content.length <= prefix.length){
-            return false;
-        }
-        if (!message.content.startsWith(prefix)){
-            return false;
-        }
-        return true;
-    }
-
-    private static GetMessageArguments(message: Message, prefix: string): string[] {
-        const msgCommandString = message.content.slice(prefix.length);
-        return msgCommandString.split(/ +/g);
-    }
-
-    public static async GetCommandExecutionPermissions(guild: Guild, commandName: string, member: GuildMember | null, channel?: TextChannel | DMChannel | NewsChannel, checkPermissionsIfDisabled?: boolean) {
-        const command = await CommandHandler.GetCommandAsync(guild.id, commandName);
+    public static GetCommandExecutionPermissions = async (guild: Guild, commandName: string, rootOnly: boolean, member: GuildMember | null, channel?: TextChannel | DMChannel | NewsChannel, checkPermissionsIfDisabled?: boolean) : Promise<CommandExecutionPermissions|undefined> => {
+        const command = await CommandHandler.GetCommandAsync(guild.id, commandName, rootOnly);
         if (command === undefined) {
-            return new CommandExecutionPermissions(null);
+            return;
         }
         const perms = new CommandExecutionPermissions(command);
         if (checkPermissionsIfDisabled !== true && !perms.enabled) return perms; // Don't bother checking permissions if we're attempting to execute & command disabled
 
-        var permissionCheck = await PermissionSetHandler.CheckPermissions(guild.id, command.permissionset_id, member, channel);
+        var permissionCheck = await PermissionSetHandler.CheckPermissions(guild.id, command.commandModel.permissionset_id, member, channel);
         perms.canExecute = await CommandHandler.CommandCanExecute(permissionCheck, command, guild, member);
 
         return perms;
     }
 
-    private static async CommandCanExecute(result: PermissionCheckResult, command: CommandModel, guild: Guild, member: GuildMember | null) : Promise<boolean> {
+    private static async CommandCanExecute(result: PermissionCheckResult, command: CachedCommandModel, guild: Guild, member: GuildMember | null) : Promise<boolean> {
         if (!this.CheckReservedCommandExclusion(command, member)) {
             return false;
         }
@@ -149,39 +107,37 @@ export class CommandHandler {
         return false;
     }
 
-    private static CheckReservedCommandExclusion(command: CommandModel, member: GuildMember | null) : boolean {
+    private static CheckReservedCommandExclusion(command: CachedCommandModel, member: GuildMember | null) : boolean {
         if (member === null) {
             // Not sure how we got here, but no permissions to check... pass
             return true;
         }
-        const reservedCommand = ReservedCommandList.find((c) => c.name == command.command);
-        if (reservedCommand === undefined){
+        if (command.reservedCommand === undefined){
             // Not a reserved command... can't check exclusive permissions
             return true;
         }
         // Potentially add another for ownerOnly, but that might be unnecessary
-        if (reservedCommand.adminOnly && !member.hasPermission('ADMINISTRATOR')){
+        if (command.reservedCommand.adminOnly && !member.hasPermission('ADMINISTRATOR')){
             return false;
         }
         return true;
     }
 
-    private static CheckReservedCommandDefaultPermissions(command: CommandModel, member: GuildMember | null) : boolean {
+    private static CheckReservedCommandDefaultPermissions(command: CachedCommandModel, member: GuildMember | null) : boolean {
         if (member === null) {
             // Not sure how we got here, but no permissions to check... pass
             return true;
         }
-        const reservedCommand = ReservedCommandList.find((c) => c.name == command.command);
-        if (reservedCommand === undefined){
+        if (command.reservedCommand === undefined){
             // Not a reserved command... permissions allowed
             return true;
         }
-        if (reservedCommand.defaultUserPermissions.length === 0){
+        if (command.reservedCommand.defaultUserPermissions.length === 0){
             // No default required user permissions: allow
             return true;
         }
-        for(let i=0; i < reservedCommand.defaultUserPermissions.length; i++){
-            const rc = reservedCommand.defaultUserPermissions[i];
+        for(let i=0; i < command.reservedCommand.defaultUserPermissions.length; i++){
+            const rc = command.reservedCommand.defaultUserPermissions[i];
             if (!member.hasPermission(rc)) {
                 // Member missing expected user permission
                 return false;
@@ -192,13 +148,15 @@ export class CommandHandler {
 }
 
 export class CommandExecutionPermissions {
-    command: CommandModel | null;
+    command: CommandModel;
+    reservedCommand: Command|undefined;
     enabled: boolean;
     canExecute: boolean;
 
-    constructor(command: CommandModel | null, enabled?: boolean, canExecute?: boolean) {
-        this.command = command;
-        this.enabled = enabled || command?.enabled || false;
+    constructor(command: CachedCommandModel, enabled?: boolean, canExecute?: boolean) {
+        this.command = command.commandModel;
+        this.reservedCommand = command.reservedCommand;
+        this.enabled = enabled || command.commandModel.enabled || false;
         this.canExecute = canExecute || false;
     }
 }
@@ -213,27 +171,26 @@ export class CommandExecutionParameters {
     public messageAuthor: User;
     public messageChannel: TextChannel|NewsChannel|DMChannel;
     private messageContent: string;
-    private commandName: string|null;
+    private commandName: string;
 
-    constructor(message: Message, command: CommandModel | null) {
-        if (message.guild === null) throw new Error("Cannot execute command without a guild");
-        this.guild = message.guild;
+    constructor(command: CommandModel, guild: Guild, messageMember: GuildMember | null, messageAuthor: User, messageChannel: TextChannel|NewsChannel|DMChannel, messageContent: string) {
+        this.guild = guild;
         if (this.guild.me === null) throw new Error("Cannot execute command if bot isn't in the guild");
         this.me = this.guild.me;
-        this.messageMember = message.member;
-        this.messageAuthor = message.author;
-        this.messageChannel = message.channel;
-        this.messageContent = message.content;
+        this.messageMember = messageMember;
+        this.messageAuthor = messageAuthor;
+        this.messageChannel = messageChannel;
+        this.messageContent = messageContent;
 
-        this.commandName = command?.command || null;
-        this.outputChannel = message.channel instanceof TextChannel ? message.channel : undefined;
-        this.deleteCommand = command?.suppressCommand || false;
-        this.logUsage = command === null || command.logUsage;
+        this.commandName = command.command;
+        this.outputChannel = messageChannel instanceof TextChannel ? messageChannel : undefined;
+        this.deleteCommand = command.suppressCommand || false;
+        this.logUsage = command.logUsage;
         this.checkOverrideChannel(command);
     }
 
-    private checkOverrideChannel = (command: CommandModel | null) : void => {
-        if (command === null || command?.outputChannelId === null || this.guild.me === null) return;
+    private checkOverrideChannel = (command: CommandModel) : void => {
+        if (command.outputChannelId === null || this.guild.me === null) return;
         const channel = this.guild.channels.cache.get(command.outputChannelId);
         if (
             channel === undefined || 

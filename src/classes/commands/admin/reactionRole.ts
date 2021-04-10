@@ -5,40 +5,60 @@ import RepositoryFactory from "../../RepositoryFactory";
 import ReactionRoleModel from "../../dataModels/ReactionRoleModel";
 import { ReactionRoleHandler } from '../../behaviors/ReactionRoleHandler';
 
-class ReactionRoleCommand extends Command {
+export class ReactionRoleCommand extends Command {
+    public static readonly CommandName: string = 'reactionrole';
+
     constructor(){
         super({
-            name: 'reactionrole',
+            name: ReactionRoleCommand.CommandName,
+            childCommands: [ReactionRoleAddCommand.CommandName, ReactionRoleListCommand.CommandName, ReactionRolePendingCommand.CommandName, ReactionRoleDeleteCommand.CommandName],
             category: 'admin',
             usage: 'reactionRole add|list|pending|delete',
             description: 'Sets up role assignment on reactions to a specific message',
             clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
             examples: ['reactionRole add #signup 8675309 :telephone: @Jenny'],
-            logByDefault: false
+            logByDefault: true
         });
     }
 
-    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+    run = async (message: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
 
         const initialParam = args.shift();
         switch (initialParam) {
             case 'add':
-                await ReactionRoleCommand.add(args, commandExec);
+                await this.runChildCommandAsync(ReactionRoleAddCommand.CommandName, message, args, commandExec);
                 return;
             case 'list':
-                await ReactionRoleCommand.list(commandExec);
+                await this.runChildCommandAsync(ReactionRoleListCommand.CommandName, message, args, commandExec);
                 return;
             case 'pending':
-                await ReactionRoleCommand.pending(args, commandExec);
+                await this.runChildCommandAsync(ReactionRolePendingCommand.CommandName, message, args, commandExec);
                 return;
             case 'delete':
-                await ReactionRoleCommand.delete(args, commandExec);
+            await this.runChildCommandAsync(ReactionRoleDeleteCommand.CommandName, message, args, commandExec);
                 return;
         }
         await commandExec.sendAsync('This should have a syntax helper, but it doesn\'t yet');
     }
+}
 
-    private static add = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+export class ReactionRoleAddCommand extends Command {
+    public static readonly CommandName: string = 'reactionrole.add';
+
+    constructor(){
+        super({
+            name: ReactionRoleAddCommand.CommandName,
+            parentCommand: ReactionRoleCommand.CommandName,
+            category: 'admin',
+            usage: 'reactionRole add <channel ID/mention> <messageID> <emoji> <role ID/mention>',
+            description: 'Sets up role assignment on reactions to a specific message',
+            clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+            examples: ['reactionRole add #signup 8675309 :telephone: @Jenny'],
+            logByDefault: true
+        });
+    }
+
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         if (args.length !== 4) {
             await commandExec.errorAsync('Invalid add syntax.  Proper syntax is !reactionRole add <channel ID/mention> <message ID> <emoji> <role ID/mention>');
             return;
@@ -90,8 +110,25 @@ class ReactionRoleCommand extends Command {
         commandLog.addField('Role', role, true);
         await commandExec.logAsync(commandLog);
     }
+}
 
-    private static list = async (commandExec: CommandExecutionParameters) : Promise<void> => {
+export class ReactionRoleListCommand extends Command {
+    public static readonly CommandName: string = 'reactionrole.list';
+
+    constructor(){
+        super({
+            name: ReactionRoleListCommand.CommandName,
+            parentCommand: ReactionRoleCommand.CommandName,
+            category: 'admin',
+            usage: 'reactionRole list',
+            description: 'Lists automatic role assignments',
+            clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+            examples: ['reactionRole list'],
+            logByDefault: false
+        });
+    }
+
+    run = async (_: Message, __: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const repo = await RepositoryFactory.getInstanceAsync();
         const rrList = await repo.ReactionRoles.selectAll(commandExec.guild.id);
         const listEmbed = new MessageEmbed()
@@ -109,7 +146,7 @@ class ReactionRoleCommand extends Command {
             const cid = rr.channel_id;
             if (cid !== channelId) {
                 // Changed channels (potentially fields)
-                ReactionRoleCommand.addChannelField(commandExec.guild, channelId, listEmbed, fieldString);
+                ReactionRoleListCommand.addChannelField(commandExec.guild, channelId, listEmbed, fieldString);
                 fieldString = null;
                 channelId = cid;
             }
@@ -118,7 +155,7 @@ class ReactionRoleCommand extends Command {
             } else fieldString = '';
             fieldString = fieldString + `${rr.reactionrole_id}: [${rr.message_id}] ${rr.emoji} <@&${rr.role_id}>`;
         }
-        ReactionRoleCommand.addChannelField(commandExec.guild, channelId, listEmbed, fieldString);
+        ReactionRoleListCommand.addChannelField(commandExec.guild, channelId, listEmbed, fieldString);
         await commandExec.sendAsync(listEmbed);
 
         await commandExec.logDefaultAsync();
@@ -130,8 +167,25 @@ class ReactionRoleCommand extends Command {
         const channelName = channel === undefined ? "Unknown Channel" : `#${channel.name}`;
         embed.addField(channelName + " (" + channelId + ")", fieldString);
     }
+}
 
-    private static pending = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+export class ReactionRolePendingCommand extends Command {
+    public static readonly CommandName: string = 'reactionrole.pending';
+
+    constructor(){
+        super({
+            name: ReactionRolePendingCommand.CommandName,
+            parentCommand: ReactionRoleCommand.CommandName,
+            category: 'admin',
+            usage: 'reactionRole pending <ID>',
+            description: 'Lists pending role assignments for the specified reaction role',
+            clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+            examples: ['reactionRole pending 15'],
+            logByDefault: true
+        });
+    }
+
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const rr_id = args.shift();
         if (rr_id === undefined){
             await commandExec.errorAsync('Proper syntax is !reactionRole pending <reaction role id>');
@@ -155,8 +209,25 @@ class ReactionRoleCommand extends Command {
 
         await commandExec.logDefaultAsync();
     }
+}
 
-    private static delete = async (args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
+export class ReactionRoleDeleteCommand extends Command {
+    public static readonly CommandName: string = 'reactionrole.delete';
+
+    constructor(){
+        super({
+            name: ReactionRoleDeleteCommand.CommandName,
+            parentCommand: ReactionRoleCommand.CommandName,
+            category: 'admin',
+            usage: 'reactionRole delete <ID>',
+            description: 'Deletes the specified reaction role',
+            clientPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+            examples: ['reactionRole delete 15'],
+            logByDefault: true
+        });
+    }
+
+    run = async (_: Message, args: string[], commandExec: CommandExecutionParameters) : Promise<void> => {
         const guild_id = commandExec.guild.id;
 
         const rr_id = args.shift();
@@ -200,4 +271,10 @@ class ReactionRoleCommand extends Command {
     }
 }
 
-export default ReactionRoleCommand;
+export const ReactionRoleCommands: Command[] = [
+    new ReactionRoleCommand(),
+    new ReactionRoleAddCommand(),
+    new ReactionRoleListCommand(),
+    new ReactionRolePendingCommand(),
+    new ReactionRoleDeleteCommand()
+];
