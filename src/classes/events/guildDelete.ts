@@ -14,6 +14,12 @@ const handler: IEventHandler = {
         await repo.Commands.deleteGuild(guild.id);
         await repo.PermissionSets.deleteGuild(guild.id);
         await repo.Members.deleteGuild(guild.id);
+        await repo.MemberNotes.deleteGuild(guild.id);
+        await repo.AutoResponders.deleteGuild(guild.id);
+        await repo.MemberReactionRoles.deleteGuild(guild.id);
+        await repo.ReactionRoles.deleteGuild(guild.id);
+        await repo.AutoRoles.deleteGuild(guild.id);
+        await repo.MassRoles.deleteGuild(guild.id);
     }
 };
 
