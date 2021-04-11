@@ -21,14 +21,15 @@ export default class MassRoleRepository extends DbRepository {
                 humans INTEGER DEFAULT 1 NOT NULL,
                 inRole INTEGER,
                 role_id TEXT,
-                roleArgs TEXT,
-                PRIMARY KEY(massrole_id)
+                addRoleIds TEXT,
+                removeRoleIds TEXT,
+                toggleRoleIds TEXT
             );
 
             CREATE TABLE IF NOT EXISTS massRoleMembers (
                 guild_id TEXT NOT NULL,
                 massrole_id INTEGER,
-                user_id TEXT NOT NULL
+                user_id TEXT NOT NULL,
                 PRIMARY KEY(massrole_id,user_id)
             );
         `);
@@ -36,14 +37,16 @@ export default class MassRoleRepository extends DbRepository {
 
     insert = async (massRoleModel: MassRoleModel) : Promise<number|undefined> => {
         var result = await this.db.run(
-            'INSERT OR IGNORE INTO massRoles (guild_id,user_id,bots,humans,inRole,role_id,roleArgs) VALUES (?,?,?,?,?,?,?);',
+            'INSERT OR IGNORE INTO massRoles (guild_id,user_id,bots,humans,inRole,role_id,addRoleIds,removeRoleIds,toggleRoleIds) VALUES (?,?,?,?,?,?,?,?,?);',
             massRoleModel.guild_id,
             massRoleModel.user_id,
             massRoleModel.bots,
             massRoleModel.humans,
             massRoleModel.inRole,
             massRoleModel.role_id,
-            massRoleModel.roleArgs
+            massRoleModel.addRoleIds,
+            massRoleModel.removeRoleIds,
+            massRoleModel.toggleRoleIds
         );
         return result.lastID;
     }
@@ -57,9 +60,12 @@ export default class MassRoleRepository extends DbRepository {
         );
     }
 
+    select = async(guild_id: string, massrole_id: number) => await this.db.get<MassRoleModel>('SELECT * FROM massRoles WHERE guild_id = ? and massrole_id = ?', guild_id, massrole_id);
     selectAll = async(guild_id: string) => await this.db.all<MassRoleModel[]>('SELECT * FROM massRoles WHERE guild_id = ?;', guild_id);
 
-    getPendingCount = async (guild_id: string, massrole_id: number) : Promise<number> => {
+    getPendingCount = async (guild_id: string, massrole_id: number) : Promise<number|undefined> => {
+        const mr = await this.db.get<MassRoleModel>('SELECT * FROM massRoles WHERE guild_id = ? and massrole_id = ?', guild_id, massrole_id);
+        if (mr === undefined) return undefined;
         const result = await this.db.get<{unworkedCount:number}>('SELECT COUNT(*) AS [unworkedCount] FROM massRoleMembers WHERE guild_id = ? and massrole_id = ?', guild_id, massrole_id);
         return result?.unworkedCount || 0;
     }

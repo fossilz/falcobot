@@ -6,5 +6,7 @@ export default class MassRoleModel {
     public humans: boolean;
     public inRole: boolean|null;
     public role_id: string|null;
-    public roleArgs: string;
+    public addRoleIds: string|null;
+    public removeRoleIds: string|null;
+    public toggleRoleIds: string|null;
 }

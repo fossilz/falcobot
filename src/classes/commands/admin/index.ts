@@ -7,6 +7,7 @@ import SetChannelAutoRoleCommand from './setChannelAutoRole';
 import SetLogChannelCommand from "./setLogChannel";
 import SetPrefixCommand from './setPrefix';
 import AutoRoleCommand from './autoRole';
+import { RoleCommands } from './role';
 
 const AdminCommands:Command[] = [
     new SetLogChannelCommand(),
@@ -17,6 +18,7 @@ const AdminCommands:Command[] = [
     new AutoRoleCommand()
 ]
 .concat(CommandCommands)
-.concat(ReactionRoleCommands);
+.concat(ReactionRoleCommands)
+.concat(RoleCommands);
 
 export default AdminCommands;

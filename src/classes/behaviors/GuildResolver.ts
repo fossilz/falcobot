@@ -9,6 +9,7 @@ import Repository from "../Repository";
 import { asyncForEach } from "../utils/functions";
 import MemberModel from "../dataModels/MemberModel";
 import { ReactionRoleHandler } from './ReactionRoleHandler';
+import { MassRoleHandler } from "./MassRoleHandler";
 
 export default class GuildResolver {
     public static ResolveGuild = async(guild: Guild) => {
@@ -36,6 +37,8 @@ export default class GuildResolver {
 
         // Setup reaction role listeners:
         await ReactionRoleHandler.SetupAllReactionRoleListenersForGuildAsync(guild);
+        // Setup mass role queue workers:
+        await MassRoleHandler.SetupAllMassRoleWorkersForGuildAsync(guild);
     }
 
     private static ResolveGuildMembers = async(repo: Repository, guild: Guild) : Promise<void> => {
