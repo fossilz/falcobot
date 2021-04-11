@@ -5,5 +5,6 @@ declare namespace NodeJS {
     CORS_ORIGIN: string;
     DISCORD_TOKEN: string;
     SQLITE_FILENAME: string;
+    SCREW_THIS_GUY: string;
   }
 }

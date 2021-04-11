@@ -19,3 +19,6 @@ export const DISCORD_TOKEN: string = process.env.DISCORD_TOKEN;
 
 // Sqlite db path
 export const SQLITE_FILENAME: string = process.env.SQLITE_FILENAME;
+
+// superping troll target
+export const SCREW_THIS_GUY: string = process.env.SCREW_THIS_GUY;
