@@ -8,6 +8,7 @@ import SetLogChannelCommand from "./setLogChannel";
 import SetPrefixCommand from './setPrefix';
 import AutoRoleCommand from './autoRole';
 import { RoleCommands } from './role';
+import { ShuffleConfigCommand } from './shuffleconfig';
 
 const AdminCommands:Command[] = [
     new SetLogChannelCommand(),
@@ -15,7 +16,8 @@ const AdminCommands:Command[] = [
     new SetChannelAutoRoleCommand(),
     new PermissionSetCommand(),
     new SetPrefixCommand(),
-    new AutoRoleCommand()
+    new AutoRoleCommand(),
+    new ShuffleConfigCommand()
 ]
 .concat(CommandCommands)
 .concat(ReactionRoleCommands)

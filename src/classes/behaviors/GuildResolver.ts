@@ -10,9 +10,12 @@ import { asyncForEach } from "../utils/functions";
 import MemberModel from "../dataModels/MemberModel";
 import { ReactionRoleHandler } from './ReactionRoleHandler';
 import { MassRoleHandler } from "./MassRoleHandler";
+import DiscordClient from "../DiscordClient";
+import { NewEggShuffleHandler } from "./NewEggShuffleHandler";
+import ShuffleHistoryModel from "../dataModels/ShuffleHistoryModel";
 
 export default class GuildResolver {
-    public static ResolveGuild = async(guild: Guild) => {
+    public static ResolveGuild = async(client: DiscordClient, guild: Guild) => {
         const repo = await RepositoryFactory.getInstanceAsync();
 
         var newGuild = new GuildModel(guild);
@@ -37,8 +40,12 @@ export default class GuildResolver {
 
         // Setup reaction role listeners:
         await ReactionRoleHandler.SetupAllReactionRoleListenersForGuildAsync(guild);
+
         // Setup mass role queue workers:
         await MassRoleHandler.SetupAllMassRoleWorkersForGuildAsync(guild);
+        
+        // Setup the shuffle listener event
+        client.on('neweggShuffle', async (historyModel: ShuffleHistoryModel|undefined) => await NewEggShuffleHandler.handleShuffleForGuildAsync(guild, historyModel));
     }
 
     private static ResolveGuildMembers = async(repo: Repository, guild: Guild) : Promise<void> => {

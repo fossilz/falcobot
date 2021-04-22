@@ -5,8 +5,8 @@ import GuildResolver from "../behaviors/GuildResolver";
 
 const handler: IEventHandler = {
     eventName: "guildCreate",
-    handler: async (_: DiscordClient, guild: Guild) => {
-        await GuildResolver.ResolveGuild(guild);
+    handler: async (client: DiscordClient, guild: Guild) => {
+        await GuildResolver.ResolveGuild(client, guild);
     }
 };
 

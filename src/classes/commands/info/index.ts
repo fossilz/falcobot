@@ -5,6 +5,7 @@ import MembersCommand from './members';
 import RoleInfoCommand from './roleinfo';
 import HelpCommand from './help';
 import WhoisCommand from './whois';
+import { ShuffleCommands } from './shuffle';
 
 const InfoCommands:Command[] = [
     new AvatarCommand(),
@@ -13,6 +14,6 @@ const InfoCommands:Command[] = [
     new RoleInfoCommand(),
     new HelpCommand(),
     new WhoisCommand()
-]
+].concat(ShuffleCommands);
 
 export default InfoCommands;
