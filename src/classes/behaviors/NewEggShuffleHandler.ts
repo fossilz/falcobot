@@ -46,15 +46,16 @@ export class NewEggShuffleHandler {
     public static handleShuffleLotteryAsync = async (lottery: NewEggShuffleLottery|undefined) => {
         if (lottery === undefined) return;
         const repo = await RepositoryFactory.getInstanceAsync();
+        const historyModel = NewEggShuffleHandler.getShuffleHistoryModel(lottery);
         const existingLottery = await repo.Shuffles.selectLottery(lottery.lotteryId);
-        if (existingLottery !== undefined){
-            // Potentially check for item changes later
+        if (existingLottery !== undefined && existingLottery.lotteryItems === historyModel.lotteryItems){
             return;
         }
-        const historyModel = NewEggShuffleHandler.getShuffleHistoryModel(lottery);
-        await repo.Shuffles.insertHistory(historyModel);
-        const client = Discord.getInstance();
-        client.emit('neweggShuffle', historyModel); // emit the event that a Newegg Shuffle has been added
+        await repo.Shuffles.insertOrReplaceHistory(historyModel);
+        if (existingLottery === undefined) {
+            const client = Discord.getInstance();
+            client.emit('neweggShuffle', historyModel); // emit the event that a Newegg Shuffle has been added
+        }
     }
 
     public static handleShuffleForGuildAsync = async (guild: Guild, historyModel: ShuffleHistoryModel|undefined) : Promise<void> => {
@@ -78,7 +79,16 @@ export class NewEggShuffleHandler {
 
         // Check for message eligibility
         if (nowPlusWarn < lStart) { // If we're more than (warning seconds) before the start
-            await NewEggShuffleHandler.announceShuffleStatusAsync(announceChannel, pingRole, historyModel.lotteryId, settings.prepare_message, settings.randomize_url);
+            const seconds_before_start = lStart.diff(now, 'seconds');
+            const seconds_before_prepare = seconds_before_start - warningSeconds;
+            if (seconds_before_prepare <= 0) {
+                // I think mathematically this should be impossible to reach, but I'll keep it here in case numbers are tweaked
+                await NewEggShuffleHandler.announceShuffleStatusAsync(announceChannel, pingRole, historyModel.lotteryId, settings.prepare_message, settings.randomize_url);
+            } else {
+                setTimeout(
+                    async () => await NewEggShuffleHandler.announceShuffleStatusAsync(announceChannel, pingRole, historyModel.lotteryId, settings.prepare_message, settings.randomize_url)
+                , seconds_before_prepare * 1000);
+            }
         }
         if (nowPlusWarn < lEnd) { // If we're not already in the warn period
             const seconds_before_start = lStart.diff(now, 'seconds');

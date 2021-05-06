@@ -53,9 +53,9 @@ export default class ShuffleRepository extends DbRepository {
         );
         return result.lastID;
     }
-    insertHistory = async (history: ShuffleHistoryModel) : Promise<void> => {
+    insertOrReplaceHistory = async (history: ShuffleHistoryModel) : Promise<void> => {
         await this.db.run(
-            'INSERT OR IGNORE INTO shuffleHistory (lotteryId, lotteryStartDate, lotteryEndDate, lotteryDrawDate, sellingStartDate, sellingEndDate, drawInterval, lotteryItems) VALUES (?, ?, ?, ?, ?, ?, ?, ?);', 
+            'INSERT OR REPLACE INTO shuffleHistory (lotteryId, lotteryStartDate, lotteryEndDate, lotteryDrawDate, sellingStartDate, sellingEndDate, drawInterval, lotteryItems) VALUES (?, ?, ?, ?, ?, ?, ?, ?);', 
             history.lotteryId,
             history.lotteryStartDate,
             history.lotteryEndDate,
