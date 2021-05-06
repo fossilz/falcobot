@@ -1,17 +1,20 @@
+import App from "./api/app";
+import GuildsController from "./api/controllers/guildsController";
 import RepositoryFactory from "./classes/RepositoryFactory";
-import { Discord, WebServer, DiscordClient } from "./index";
+import { Discord, DiscordClient } from "./index";
 
 // Discord instance (using singleton pattern)
-let dc: DiscordClient;
+const dc: DiscordClient = Discord.getInstance();
 
-// Web server instance
-let ws: WebServer;
+// Api server instance
+const apiApp: App = new App([
+  new GuildsController()
+]);
 
 const repo = RepositoryFactory.getInstanceAsync().then(() => {
-  dc = Discord.getInstance();
-  ws = new WebServer();
+  apiApp.listen();
 
-  ws.on("ready", async () => {
+  apiApp.on("ready", async () => {
     console.log("Server ready");
     await dc.login();
   });
@@ -26,7 +29,7 @@ const repo = RepositoryFactory.getInstanceAsync().then(() => {
 const exitHandler = async function (options: any, exitCode: any) {
   if (options.cleanup) {
     // Put all cleanup logic here
-    if (ws) ws.close();
+    if (apiApp) apiApp.close();
     if (dc) dc.close();
   }
   if (exitCode || exitCode === 0) console.log(exitCode);

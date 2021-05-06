@@ -22,3 +22,9 @@ export const SQLITE_FILENAME: string = process.env.SQLITE_FILENAME;
 
 // superping troll target
 export const SCREW_THIS_GUY: string = process.env.SCREW_THIS_GUY;
+
+// static API token
+export const API_STATIC_TOKEN: string = process.env.API_STATIC_TOKEN;
+
+// static API token resolves to this UserID
+export const API_STATIC_USERID: string = process.env.API_STATIC_USERID;

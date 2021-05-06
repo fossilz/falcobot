@@ -5,7 +5,6 @@
 import * as config from "./config";
 
 import DiscordClient from "./classes/DiscordClient";
-import WebServer from "./classes/WebServer";
 import Discord from "./classes/Discord";
 
-export { config, Discord, DiscordClient, WebServer };
+export { config, Discord, DiscordClient };
