@@ -3,3 +3,9 @@ export async function asyncForEach<T>(array: Array<T>, callback: (arg: T, index?
         await callback(array[index], index, array);
     }
 };
+
+export function parseIntOrDefault(value: string|null|undefined, defaultValue: number): number {
+    if (value === undefined || value === null) return defaultValue;
+    const parsedVal = parseInt(value);
+    return isNaN(parsedVal) ? defaultValue : parsedVal;
+}

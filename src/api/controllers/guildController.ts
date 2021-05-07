@@ -1,8 +1,11 @@
 import { Router, Response, NextFunction } from "express";
-import RepositoryFactory from "../../classes/RepositoryFactory";
+import HttpException from "../exceptions/httpException";
+import InvalidGuildException from "../exceptions/invalidGuildException";
 import ApiController from "../interfaces/apiController.interface";
-import RequestWithGuildMember from "../interfaces/requestWithGuildMember.interface";
+import GuildRequest from "../interfaces/guildRequest.interface";
+import RequestWithUser from "../interfaces/requestWithUser.interface";
 import authGuild from "../middleware/guildauth.middleware";
+import AutoRespondersController from "./autoRespondersController";
 
 export default class GuildController implements ApiController {
     public basePath: string = "/:guildid";
@@ -10,8 +13,11 @@ export default class GuildController implements ApiController {
 
     constructor(){
         this.initializeMiddlewares();
-        this.initializeControllers([]);
-        this.intializeRoutes();
+        this.initializeControllers([
+            new AutoRespondersController()
+        ]);
+        this.initializeRoutes();
+        this.initializeErrorHandling();
     }
 
     private initializeMiddlewares = () => {
@@ -24,19 +30,23 @@ export default class GuildController implements ApiController {
         });
     }
 
-    private intializeRoutes = () => {
+    private initializeRoutes = () => {
         this.router.get("/", this.getGuildDashboard);
     }
 
-    private getGuildDashboard = async (request: RequestWithGuildMember, res: Response, next: NextFunction) => {
-        const guildid = request.guildMember?.guildId;
-        if (guildid === undefined) throw("Invalid guild id");
-        const repo = await RepositoryFactory.getInstanceAsync();
-        const guild = await repo.Guilds.select(guildid);
-        if (guild === undefined){
-            res.status(404).send("Guild not found");
-            return next();
-        }
+    private initializeErrorHandling = () => {
+        this.router.use(this.handleInvalidGuild);
+    }
+
+    private getGuildDashboard = async (request: GuildRequest, res: Response, _: NextFunction) => {
+        const guild = request.guild;
         return res.send("Place Guild dashboard here.  User: " + request.user?.userId + ", Guild: " + JSON.stringify(guild));
+    }
+
+    private handleInvalidGuild = async (error: HttpException, request: RequestWithUser, res: Response, next: NextFunction) => {
+        if (!(error instanceof InvalidGuildException)) {
+            return next(error);
+        }
+        return res.send("Place missing guild screen here.  User: " + request.user?.userId);
     }
 }

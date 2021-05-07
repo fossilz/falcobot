@@ -4,5 +4,5 @@ export default class AutoResponderModel {
     public pattern: string;
     public enabled: boolean;
     public permissionset_id: number|null;
-    public message: string;
+    public message: string|null;
 }

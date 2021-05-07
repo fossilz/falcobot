@@ -4,6 +4,7 @@ import cors from "cors";
 import { PORT, CORS_ORIGIN } from "../config";
 import ApiController from "./interfaces/apiController.interface";
 import { Server } from "http";
+import errorMiddleware from "./middleware/error.middleware";
 
 export default class App extends EventEmitter {
     public app: express.Application;
@@ -15,6 +16,7 @@ export default class App extends EventEmitter {
 
         this.initializeMiddlewares();
         this.initializeControllers(controllers);
+        this.initializeErrorHandling();
     }
 
     private initializeMiddlewares = () => {
@@ -31,6 +33,10 @@ export default class App extends EventEmitter {
         controllers.forEach((controller) => {
             this.app.use(controller.basePath, controller.router);
         });
+    }
+
+    private initializeErrorHandling = () => {
+        this.app.use(errorMiddleware);
     }
 
     public listen() {

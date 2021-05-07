@@ -31,11 +31,14 @@ class AutoResponderRepository extends DbRepository {
         `);
     }
 
-    insert = async (guild_id: string, name: string) : Promise<number|undefined> => {
+    insert = async (guild_id: string, autoResponder: AutoResponderModel) : Promise<number|undefined> => {
         var result = await this.db.run(
-            'INSERT OR IGNORE INTO autoResponders (guild_id, name, useRoleWhitelist, useChannelWhitelist) VALUES (?, ?, 0, 0);', 
+            'INSERT OR IGNORE INTO autoResponders (guild_id, pattern, enabled, permissionset_id, message) VALUES (?, ?, ?, ?, ?);', 
             guild_id, 
-            name
+            autoResponder.pattern,
+            autoResponder.enabled,
+            autoResponder.permissionset_id,
+            autoResponder.message
         );
         return result.lastID
     }
@@ -44,10 +47,18 @@ class AutoResponderRepository extends DbRepository {
     selectAll = async(guild_id: string) => await this.db.all<AutoResponderModel[]>('SELECT * FROM autoResponders WHERE guild_id = ?;', guild_id);
     selectReactions = async(guild_id: string, autoresponder_id: number) => await this.db.all<AutoResponderReactionModel[]>('SELECT * FROM autoResponderReactions WHERE guild_id = ? AND autoresponder_id = ?;', guild_id, autoresponder_id);
 
-    updatePattern = async (guild_id: string, autoresponder_id: number, pattern: string) => await this.db.run('UPDATE autoResponders SET pattern = ? WHERE guild_id = ? AND autoresponder_id = ?;', pattern, guild_id, autoresponder_id);
-    updateEnabled = async (guild_id: string, autoresponder_id: number, enabled: boolean) => await this.db.run('UPDATE autoResponders SET enabled = ? WHERE guild_id = ? AND autoresponder_id = ?;', enabled, guild_id, autoresponder_id);
-    updatePermissionSet = async(guild_id: string, autoresponder_id: number, permissionset_id: number|null) => await this.db.run('UPDATE autoResponders SET permissionset_id = ? WHERE guild_id = ? AND autoresponder_id = ?;', permissionset_id, guild_id, autoresponder_id);
-    updateMessage = async (guild_id: string, autoresponder_id: number, message: string) => await this.db.run('UPDATE autoResponders SET message = ? WHERE guild_id = ? AND autoresponder_id = ?;', message, guild_id, autoresponder_id);
+    update = async (guild_id: string, autoresponder: AutoResponderModel) => {
+        await this.db.run(
+            'UPDATE autoResponders SET pattern = :pattern, enabled = :enabled, permissionset_id = :permissionsetid, message = :message WHERE guild_id = :guildid AND autoresponder_id = :autoresponderid;',
+            {
+                ':guildid': guild_id,
+                ':autoresponderid': autoresponder.autoresponder_id,
+                ':pattern': autoresponder.pattern,
+                ':enabled': autoresponder.enabled,
+                ':permissionsetid': autoresponder.permissionset_id,
+                ':message': autoresponder.message
+            });
+    }
 
     addReaction = async(guild_id: string, autoresponder_id: number, reaction: string) => {
         await this.db.run('INSERT INTO autoResponderReactions (guild_id, autoresponder_id, reaction) VALUES (?, ?, ?);', guild_id, autoresponder_id, reaction);
@@ -56,15 +67,15 @@ class AutoResponderRepository extends DbRepository {
         await this.db.run('DELETE FROM autoResponderReactions WHERE guild_id = ? AND autoresponderreaction_id = ?;', guild_id, autoresponderreaction_id);
     };
 
-    delete = async(guild_id: string, set_id: number) => 
+    delete = async(guild_id: string, autoresponder_id: number) => 
         await this.db.run(`
-            DELETE FROM autoResponderReactions WHERE guild_id = :guildid AND set_id = :setid;
-            DELETE FROM autoResponders WHERE guild_id = :guildid AND set_id = :setid;
-        `, { ':guildid': guild_id, ':setid': set_id});
-    deleteSetItem = async(guild_id: string, set_id: number, permissionsetitem_id: number) => 
+            DELETE FROM autoResponderReactions WHERE guild_id = :guildid AND autoresponder_id = :autoresponderid;
+            DELETE FROM autoResponders WHERE guild_id = :guildid AND autoresponder_id = :autoresponderid;
+        `, { ':guildid': guild_id, ':autoresponderid': autoresponder_id});
+    deleteReactions = async(guild_id: string, autoresponder_id: number) => 
         await this.db.run(`
-            DELETE FROM autoResponderReactions WHERE guild_id = ? AND set_id = ? AND permissionsetitem_id = ?;
-        `, guild_id, set_id, permissionsetitem_id);
+            DELETE FROM autoResponderReactions WHERE guild_id = ? AND autoresponder_id = ?;
+        `, guild_id, autoresponder_id);
     deleteGuild = async(guild_id: string) => 
         await this.db.run(`
             DELETE FROM autoResponderReactions WHERE guild_id = :guildid;

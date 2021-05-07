@@ -1,5 +1,6 @@
 import App from "./api/app";
 import GuildsController from "./api/controllers/guildsController";
+import ShufflesController from "./api/controllers/shufflesController";
 import RepositoryFactory from "./classes/RepositoryFactory";
 import { Discord, DiscordClient } from "./index";
 
@@ -8,7 +9,8 @@ const dc: DiscordClient = Discord.getInstance();
 
 // Api server instance
 const apiApp: App = new App([
-  new GuildsController()
+  new GuildsController(),
+  new ShufflesController()
 ]);
 
 const repo = RepositoryFactory.getInstanceAsync().then(() => {

@@ -167,6 +167,19 @@ export class NewEggShuffleHandler {
         return itemsArray.join(', ');
     }
 
+    public static getNeweggLotteryFromHistory = (historyModel: ShuffleHistoryModel) : NewEggShuffleLottery => {
+        const result = new NewEggShuffleLottery();
+        result.lotteryId = historyModel.lotteryId;
+        result.lotteryStartDate = moment.utc(historyModel.lotteryStartDate).toDate();
+        result.lotteryEndDate = moment.utc(historyModel.lotteryEndDate).toDate();
+        result.lotteryDrawDate = moment.utc(historyModel.lotteryDrawDate).toDate();
+        result.sellingStartDate = moment.utc(historyModel.sellingStartDate).toDate();
+        result.sellingEndDate = moment.utc(historyModel.sellingEndDate).toDate();
+        result.drawInterval = historyModel.drawInterval;
+        result.lotteryItems = JSON.parse(historyModel.lotteryItems);
+        return result;
+    }
+
     public static getNeweggShuffleAsync = async () : Promise<NewEggShuffleLottery|undefined> => {
         const apiRequest = new NewEggShuffleApiRequest();
         const jsonApiString = await (new Promise<string>(apiRequest.getLottery()));

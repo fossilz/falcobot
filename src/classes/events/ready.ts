@@ -1,6 +1,6 @@
 import { Guild } from "discord.js";
 import GuildResolver from "../behaviors/GuildResolver";
-import { NewEggShuffleHandler, NewEggShuffleLottery } from "../behaviors/NewEggShuffleHandler";
+import { NewEggShuffleHandler } from "../behaviors/NewEggShuffleHandler";
 import DiscordClient from "../DiscordClient";
 import IEventHandler from "./IEventHandler";
 
