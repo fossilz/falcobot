@@ -61,7 +61,8 @@ class AutoResponderRepository extends DbRepository {
     }
 
     addReaction = async(guild_id: string, autoresponder_id: number, reaction: string) => {
-        await this.db.run('INSERT INTO autoResponderReactions (guild_id, autoresponder_id, reaction) VALUES (?, ?, ?);', guild_id, autoresponder_id, reaction);
+        var result = await this.db.run('INSERT INTO autoResponderReactions (guild_id, autoresponder_id, reaction) VALUES (?, ?, ?);', guild_id, autoresponder_id, reaction);
+        return result.lastID
     };
     removeReaction = async(guild_id: string, autoresponderreaction_id: number) => {
         await this.db.run('DELETE FROM autoResponderReactions WHERE guild_id = ? AND autoresponderreaction_id = ?;', guild_id, autoresponderreaction_id);

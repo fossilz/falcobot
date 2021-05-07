@@ -1,4 +1,5 @@
 import { Router, Response, NextFunction } from "express";
+import AutoResponderReactionModel from "../../classes/dataModels/AutoResponderReactionModel";
 import AutoResponderModel from "../../classes/dataModels/AutoResponderModel";
 import HttpException from "../exceptions/httpException";
 import InvalidGuildException from "../exceptions/invalidGuildException";
@@ -7,7 +8,7 @@ import GuildRequest from "../interfaces/guildRequest.interface";
 
 export default class AutoRespondersController implements ApiController {
     public basePath: string = "/autoresponders";
-    public router = Router();
+    public router = Router({mergeParams: true});
 
     constructor(){
         this.initializeRoutes();
@@ -19,6 +20,10 @@ export default class AutoRespondersController implements ApiController {
         this.router.post("/", this.postAutoResponder);
         this.router.put("/:autoResponderId", this.putAutoResponder);
         this.router.delete("/:autoResponderId", this.deleteAutoResponder);
+        // Reactions
+        this.router.get("/:autoResponderId/reactions", this.getAutoResponderReactions);
+        this.router.post("/:autoResponderId/reactions", this.postAutoResponderReaction);
+        this.router.delete("/:autoResponderId/reactions/:autoResponderReactionId", this.deleteAutoResponderReaction);
     }
 
     private getAutoResponders = async (request: GuildRequest, res: Response, next: NextFunction) => {
@@ -111,5 +116,53 @@ export default class AutoRespondersController implements ApiController {
         }
         await request.repo?.AutoResponders.delete(request.guildMember?.guildId, autoResponderId);
         return res.send(responder);
+    }
+    
+    private getAutoResponderReactions = async (request: GuildRequest, res: Response, next: NextFunction) => {
+        if (request.guildMember?.guildId === undefined) return next(new InvalidGuildException(""));
+        const autoResponderId = parseInt(request.params["autoResponderId"]);
+        if (isNaN(autoResponderId)){
+            return next(new HttpException(404, "AutoResponder not found"));
+        }
+        const reactions = await request.repo?.AutoResponders.selectReactions(request.guildMember?.guildId, autoResponderId);
+        if (reactions === undefined){
+            return next(new HttpException(404, "AutoResponder reactions not found"));
+        }
+        return res.send(reactions);
+    }
+    
+    private postAutoResponderReaction = async (request: GuildRequest, res: Response, next: NextFunction) => {
+        if (request.guildMember?.guildId === undefined) return next(new InvalidGuildException(""));
+        const autoResponderId = parseInt(request.params["autoResponderId"]);
+        if (isNaN(autoResponderId)){
+            return next(new HttpException(404, "AutoResponder not found"));
+        }
+        const responder = await request.repo?.AutoResponders.select(request.guildMember?.guildId, autoResponderId);
+        if (responder === undefined){
+            return next(new HttpException(404, "AutoResponder not found"));
+        }
+        const posted = request.body as AutoResponderReactionModel;
+        if (posted.reaction === undefined){
+            return next(new HttpException(400, "Invalid reaction"));
+        }
+        posted.guild_id = request.guildMember?.guildId;
+        posted.autoresponder_id = autoResponderId;
+        const autoresponderreaction_id = await request.repo?.AutoResponders.addReaction(request.guildMember?.guildId, autoResponderId, posted.reaction);
+        if (autoresponderreaction_id === undefined) {
+            return next(new HttpException(500, "Error while attempting to insert.  Please try again"));
+        }
+        posted.autoresponderreaction_id = autoresponderreaction_id;
+        return res.status(201).send(posted);
+    }
+
+    private deleteAutoResponderReaction = async (request: GuildRequest, res: Response, next: NextFunction) => {
+        if (request.guildMember?.guildId === undefined) return next(new InvalidGuildException(""));
+        const autoResponderReactionId = parseInt(request.params["autoResponderReactionId"]);
+        if (isNaN(autoResponderReactionId)){
+            return next(new HttpException(404, "AutoResponder Reaction not found"));
+        }
+        
+        await request.repo?.AutoResponders.removeReaction(request.guildMember?.guildId, autoResponderReactionId);
+        return res.status(204).send();
     }
 }
