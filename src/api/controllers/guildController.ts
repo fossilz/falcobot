@@ -6,6 +6,10 @@ import GuildRequest from "../interfaces/guildRequest.interface";
 import RequestWithUser from "../interfaces/requestWithUser.interface";
 import authGuild from "../middleware/guildauth.middleware";
 import AutoRespondersController from "./autoRespondersController";
+import AutoRolesController from "./autoRolesController";
+import GuildChannelsController from "./guildChannelsController";
+import GuildEmojisController from "./guildEmojisController";
+import GuildRolesController from "./guildRolesController";
 
 export default class GuildController implements ApiController {
     public basePath: string = "/:guildid";
@@ -14,7 +18,11 @@ export default class GuildController implements ApiController {
     constructor(){
         this.initializeMiddlewares();
         this.initializeControllers([
-            new AutoRespondersController()
+            new AutoRespondersController(),
+            new GuildEmojisController(),
+            new AutoRolesController(),
+            new GuildRolesController(),
+            new GuildChannelsController()
         ]);
         this.initializeRoutes();
         this.initializeErrorHandling();

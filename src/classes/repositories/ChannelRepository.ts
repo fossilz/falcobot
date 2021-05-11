@@ -34,6 +34,7 @@ class ChannelRepository extends DbRepository {
         channel.deleted
     );
 
+    selectAll = async(guild_id: string) => await this.db.all<ChannelModel[]>('SELECT * FROM channels WHERE guild_id = ?;', guild_id);
     select = async(guild_id: string, channel_id: string) => await this.db.get<ChannelModel>('SELECT * FROM channels WHERE guild_id = ? AND channel_id = ?;', guild_id, channel_id);
 
     update = async (channel: ChannelModel) => await this.db.run(

@@ -21,13 +21,14 @@ class RoleRepository extends DbRepository {
                 hoist INTEGER DEFAULT 0 NOT NULL,
                 managed INTEGER DEFAULT 0 NOT NULL,
                 mentionable INTEGER DEFAULT 0 NOT NULL,
-                deleted INTEGER DEFAULT 0 NOT NULL
+                deleted INTEGER DEFAULT 0 NOT NULL,
+                rawPosition INTEGER DEFAULT 0 NOT NULL
             );
         `);
     }
 
     insert = async (role: RoleModel) => await this.db.run(
-        'INSERT OR REPLACE INTO roles (guild_id, role_id, name, permissions, color, hoist, managed, mentionable, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);', 
+        'INSERT OR REPLACE INTO roles (guild_id, role_id, name, permissions, color, hoist, managed, mentionable, deleted, rawPosition) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);', 
         role.guild_id, 
         role.role_id,
         role.name,
@@ -36,21 +37,23 @@ class RoleRepository extends DbRepository {
         role.hoist,
         role.managed,
         role.mentionable,
-        role.deleted
+        role.deleted,
+        role.rawPosition
     );
 
     select = async(role_id: string) => await this.db.get<RoleModel>('SELECT * FROM roles WHERE role_id = ?;', role_id);
     selectAll = async(guild_id: string) => await this.db.all<RoleModel[]>('SELECT * FROM roles WHERE guild_id = ?;', guild_id);
 
     update = async (role: RoleModel) => await this.db.run(
-        'UPDATE roles SET name = ?, permissions = ?, color = ?, hoist = ?, managed = ?, mentionable = ?, deleted = ? WHERE guild_id = ? AND role_id = ?;',
+        'UPDATE roles SET name = ?, permissions = ?, color = ?, hoist = ?, managed = ?, mentionable = ?, deleted = ?, rawPosition = ? WHERE guild_id = ? AND role_id = ?;',
         role.name,
         role.permissions,
         role.color,
         role.hoist,
         role.managed,
         role.mentionable,
-        role.deleted, 
+        role.deleted,
+        role.rawPosition,
         role.guild_id, 
         role.role_id
     );

@@ -10,6 +10,7 @@ class RoleModel {
     public managed: boolean;
     public mentionable: boolean;
     public deleted: boolean;
+    public rawPosition: number;
 
     constructor(role?: Role){
         if (role === undefined) return;
@@ -22,6 +23,7 @@ class RoleModel {
         this.managed = role.managed;
         this.mentionable = role.mentionable;
         this.deleted = role.deleted;
+        this.rawPosition = role.rawPosition;
     }
 }
 
