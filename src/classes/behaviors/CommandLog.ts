@@ -8,7 +8,8 @@ export default class CommandLog extends MessageEmbed {
 
         this
             .setAuthor(author.username, author.avatarURL() || undefined)
-            .setDescription(`Used \`${commandName}\` command in <#${channel.id}>\n${content}`);
+            .setDescription(`Used \`${commandName}\` command in <#${channel.id}>\n${content}`)
+            .setTimestamp();
     }
 
     send = async (guild: Guild) => {

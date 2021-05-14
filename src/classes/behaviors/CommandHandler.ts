@@ -228,4 +228,8 @@ export class CommandExecutionParameters {
     public logDefaultAsync = async () : Promise<void> => {
         await this.logAsync(this.getCommandLog());
     }
+
+    public toString = () : string => {
+        return `Executing ${this.commandName} as user ${this.messageMember?.id} from message ${this.messageContent}`;
+    }
 }

@@ -15,6 +15,7 @@ import MemberReactionRoleRepository from './repositories/MemberReactionRoleRepos
 import AutoRoleRepository from './repositories/AutoRoleRepository';
 import MassRoleRepository from './repositories/MassRoleRepository';
 import ShuffleRepository from './repositories/ShuffleRepository';
+import MessageCollectionRepository from './repositories/MessageCollectionRepository';
 
 export default class Repository {
     private db: Database<sqlite3.Database, sqlite3.Statement>;
@@ -32,6 +33,7 @@ export default class Repository {
     public AutoRoles: AutoRoleRepository;
     public MassRoles: MassRoleRepository;
     public Shuffles: ShuffleRepository;
+    public MessageCollections: MessageCollectionRepository;
 
     async initAsync(){
         this.db = await open({
@@ -52,6 +54,7 @@ export default class Repository {
         this.AutoRoles = await this.initializeRepoAsync(AutoRoleRepository);
         this.MassRoles = await this.initializeRepoAsync(MassRoleRepository);
         this.Shuffles = await this.initializeRepoAsync(ShuffleRepository);
+        this.MessageCollections = await this.initializeRepoAsync(MessageCollectionRepository);
     }
 
     private async initializeRepoAsync<T extends DbRepository>(c: { new(db: Database<sqlite3.Database, sqlite3.Statement>): T }): Promise<T> {
