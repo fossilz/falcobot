@@ -1,10 +1,11 @@
-import { Guild, TextChannel, Message, MessageEmbed } from "discord.js";
+import { Guild, TextChannel, Message, MessageEmbed, CollectorFilter, MessageReaction, User } from "discord.js";
 import moment from "moment";
 import { CachedMessageCollectionModel, MessageCollectionCache } from "../cache/MessageCollectionCache";
 import MessageCollectionItemModel from "../dataModels/MessageCollectionItemModel";
 import MessageCollectionModel from "../dataModels/MessageCollectionModel";
 import Repository from "../Repository";
 import RepositoryFactory from "../RepositoryFactory";
+import { MemberRoleHelper } from "./MemberRoleHelper";
 
 export class MessageCollectionHandler {
 
@@ -31,6 +32,19 @@ export class MessageCollectionHandler {
         await Promise.all(promises);
         await repo.MessageCollections.setPublished(guild.id, messageCollection.messageCollection.messageCollectionId, now.toISOString());
         MessageCollectionCache.ClearCache(guild.id);
+    }
+
+    public static CheckMaintainLastForChannelAsync = async (message: Message) => {
+        const channel = message.channel;
+        if (!(channel instanceof TextChannel)) return;
+        if (message.author.bot) return;
+        const guild = channel.guild;
+        const messageCollections = await MessageCollectionCache.GetMessageCollectionsAsync(guild.id);
+        if (messageCollections === undefined || messageCollections.length == 0) return;
+        const publishedInChannel = messageCollections.filter(x => x.messageCollection.lastPublishedUtc !== null && x.messageCollection.channel == channel.id);
+        if (publishedInChannel.length === 0) return;
+        const maintainTasks = publishedInChannel.map(x => MessageCollectionHandler.MessageCollectionMaintainLastAsync(guild, x));
+        await Promise.all(maintainTasks);
     }
     
     // Maintain "last" message status, mark collection needsPublish if anything is missing
@@ -74,6 +88,10 @@ export class MessageCollectionHandler {
         if (publishedMessage.message === null) return;
         const content = MessageCollectionHandler.GetMessageCollectionItemContent(publishedMessage.item);
         publishedMessage.message = await publishedMessage.message.edit(content);
+        
+        const messageCollection = await MessageCollectionCache.GetMessageCollectionAsync(publishedMessage.item.guild_id, publishedMessage.item.messageCollectionId);
+        if (messageCollection === undefined) return;
+        await MessageCollectionHandler.SetupMessageReactionsAsync(messageCollection, publishedMessage.item, publishedMessage.message);
     }
 
     private static PublishMessageCollectionItemAsync = async(channel: TextChannel, item: MessageCollectionItemModel, repo: Repository) => {
@@ -81,9 +99,11 @@ export class MessageCollectionHandler {
         const content = MessageCollectionHandler.GetMessageCollectionItemContent(item);
         const newMessage = await channel.send(content);
         await repo.MessageCollections.publishMessageItem(item.guild_id, item.messageCollectionId, item.messageCollectionItemId, newMessage.id);
-        // TODO: Attach reactions as necessary ...
-        // If maintainlast, add the channel listener
         MessageCollectionCache.ClearCache(item.guild_id);
+        const messageCollection = await MessageCollectionCache.GetMessageCollectionAsync(item.guild_id, item.messageCollectionId);
+        if (messageCollection === undefined) return;
+        await MessageCollectionHandler.SetupMessageReactionsAsync(messageCollection, item, newMessage);
+        // If maintainlast, add the channel listener
     }
 
     public static GetMessageCollectionItemContent = (item: MessageCollectionItemModel) : MessageEmbed => {
@@ -151,6 +171,82 @@ export class MessageCollectionHandler {
         } catch (_) {
             return undefined;
         }
+    }
+
+    public static SetupGuildMessageReactionsAsync = async(guild: Guild) => {
+        const messageCollections = await MessageCollectionCache.GetMessageCollectionsAsync(guild.id);
+        if (messageCollections === undefined) return;
+        await Promise.all(messageCollections.map(x => MessageCollectionHandler.SetupMessageCollectionReactionsAsync(guild, x)));
+    }
+
+    private static SetupMessageCollectionReactionsAsync = async (guild: Guild, messageCollection: CachedMessageCollectionModel) => {
+        if (messageCollection.messageCollection.emoji === null || messageCollection.messageCollection.role === null) return;
+        const mcAudit = await MessageCollectionHandler.AuditMessageCollectionAsync(guild, messageCollection);
+        if (mcAudit === undefined) return;
+        const setupPromises = mcAudit.items
+                                .filter(x => x.message !== null && x.item.allowReact && !x.item.pendingDelete)
+                                .map(x => MessageCollectionHandler.SetupMessageReactionsAsync(messageCollection, x.item, <Message>x.message));
+        await Promise.all(setupPromises);
+    }
+
+    private static SetupMessageReactionsAsync = async(messageCollection: CachedMessageCollectionModel, item: MessageCollectionItemModel, message: Message) => {
+        await message.reactions.removeAll();
+        const emoji = messageCollection.messageCollection.emoji;
+        if (!item.allowReact || emoji === null || MessageCollectionHandler.isNotLastSingleReactItem(messageCollection, item)) {
+            return;
+        }
+        await message.react(emoji);
+        MessageCollectionHandler.CreateMessageReactionCollection(messageCollection, item, message);
+    }
+
+    private static CreateMessageReactionCollection = (messageCollection: CachedMessageCollectionModel, item: MessageCollectionItemModel, message: Message) => {
+        const collectionFilter: CollectorFilter = (_: MessageReaction, user: User) => {
+            return !user.bot;
+        }
+        const reactionCollector = message.createReactionCollector(collectionFilter);
+        reactionCollector.on('collect', async (messageReaction: MessageReaction, user: User) => {
+            await MessageCollectionHandler.AssignMessageReactionAsync(messageCollection, item, messageReaction, user);
+        });
+    }
+
+    private static AssignMessageReactionAsync = async(messageCollection: CachedMessageCollectionModel, item: MessageCollectionItemModel, messageReaction: MessageReaction, user: User) => {
+        if (messageReaction.emoji.id !== messageCollection.messageCollection.emoji && messageReaction.emoji.name !== messageCollection.messageCollection.emoji) {
+            await messageReaction.remove();
+            return;
+        }
+        await messageReaction.users.remove(user);
+        const repo = await RepositoryFactory.getInstanceAsync();
+        await repo.MessageCollections.insertReaction(item.guild_id, item.messageCollectionId, item.messageCollectionItemId, user.id);
+        setImmediate(async () => MessageCollectionHandler.CheckMessageReactionCompleteAsync(messageReaction.message.guild, messageCollection, user, repo));
+    }
+
+    private static CheckMessageReactionCompleteAsync = async(guild: Guild|null, messageCollection: CachedMessageCollectionModel, user: User, repo: Repository) => {
+        if (guild === null) return;
+        const isComplete = await MessageCollectionHandler.IsMessageReactionCompleteAsync(guild, messageCollection, user, repo);
+        if (!isComplete) return;
+        const guildMember = guild.members.resolve(user);
+        if (guildMember === null) return;
+        const role = guild.roles.cache.get(messageCollection.messageCollection.role||"");
+        if (role === undefined) return;
+        await MemberRoleHelper.TryAssignRole(guildMember, role);
+        await repo.MessageCollections.deleteReactionsForUser(guild.id, messageCollection.messageCollection.messageCollectionId, user.id);
+    }
+
+    private static IsMessageReactionCompleteAsync = async(guild: Guild, messageCollection: CachedMessageCollectionModel, user: User, repo: Repository) : Promise<boolean> => {
+        if (!messageCollection.messageCollection.multiReact){
+            const lastReact = messageCollection.items.filter(x => x.allowReact && !x.pendingDelete).sort((x,y) => y.sortIndex - x.sortIndex).shift();
+            if (lastReact === undefined) return false;
+            const mciu = await repo.MessageCollections.selectReaction(lastReact.guild_id, lastReact.messageCollectionId, lastReact.messageCollectionItemId, user.id);
+            return mciu !== undefined;
+        }
+        const hasUnreacted = await repo.MessageCollections.hasUnreactedItems(guild.id, messageCollection.messageCollection.messageCollectionId, user.id);
+        return !hasUnreacted;
+    }
+
+    private static isNotLastSingleReactItem = (messageCollection: CachedMessageCollectionModel, item: MessageCollectionItemModel) : boolean => {
+        if (messageCollection.messageCollection.multiReact) return false;
+        const reactAfter = messageCollection.items.filter(x => !x.pendingDelete && x.allowReact && x.sortIndex > item.sortIndex);
+        return reactAfter.length > 0;
     }
 }
 

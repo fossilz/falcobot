@@ -13,6 +13,7 @@ import { MassRoleHandler } from "./MassRoleHandler";
 import DiscordClient from "../DiscordClient";
 import { NewEggShuffleHandler } from "./NewEggShuffleHandler";
 import ShuffleHistoryModel from "../dataModels/ShuffleHistoryModel";
+import { MessageCollectionHandler } from "./MessageCollectionHandler";
 
 export default class GuildResolver {
     public static ResolveGuild = async(client: DiscordClient, guild: Guild) => {
@@ -43,6 +44,9 @@ export default class GuildResolver {
 
         // Setup mass role queue workers:
         await MassRoleHandler.SetupAllMassRoleWorkersForGuildAsync(guild);
+
+        // Setup message collection listeners:
+        await MessageCollectionHandler.SetupGuildMessageReactionsAsync(guild);
         
         // Setup the shuffle listener event
         client.on('neweggShuffle', async (historyModel: ShuffleHistoryModel|undefined) => await NewEggShuffleHandler.handleShuffleForGuildAsync(guild, historyModel));

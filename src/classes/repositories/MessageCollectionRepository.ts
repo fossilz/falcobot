@@ -37,6 +37,14 @@ export default class MessageCollectionRepository extends DbRepository {
                 lastUpdatedUtc TEXT NOT NULL,
                 pendingDelete INTEGER NOT NULL DEFAULT 0
             );
+
+            CREATE TABLE IF NOT EXISTS messageCollectionItemUsers (
+                guild_id TEXT NOT NULL,
+                messageCollectionId INTEGER NOT NULL,
+                messageCollectionItemId INTEGER NOT NULL,
+                userId TEXT NOT NULL,
+                PRIMARY KEY(guild_id, messageCollectionId, messageCollectionItemId, userId)
+            );
         `);
     }
 
@@ -68,6 +76,15 @@ export default class MessageCollectionRepository extends DbRepository {
         );
         await this.setUpdated(messageCollectionItem.guild_id, messageCollectionItem.messageCollectionId, messageCollectionItem.lastUpdatedUtc);
     }
+    insertReaction = async(guild_id: string, messageCollectionId: number, messageCollectionItemId: number, userId: string) => {
+        await this.db.run(
+            'INSERT OR REPLACE INTO messageCollectionItemUsers (guild_id, messageCollectionId, messageCollectionItemId, userId) VALUES (?, ?, ?, ?)',
+            guild_id,
+            messageCollectionId,
+            messageCollectionItemId,
+            userId
+        );
+    }
 
     select = async (guild_id: string, messageCollectionId: number) => {
         return await this.db.get<MessageCollectionModel>('SELECT * FROM messageCollections WHERE guild_id= ? AND messageCollectionId = ?', guild_id, messageCollectionId);
@@ -83,6 +100,21 @@ export default class MessageCollectionRepository extends DbRepository {
     }
     selectAllItems = async (guild_id: string) => {
         return await this.db.all<MessageCollectionItemModel[]>('SELECT * FROM messageCollectionItems WHERE guild_id= ?', guild_id);
+    }
+    selectReaction = async (guild_id: string, messageCollectionId: number, messageCollectionItemId: number, userId: string) => {
+        return await this.db.get<MessageCollectionItemModel>('SELECT * FROM messageCollectionItemUsers WHERE guild_id= ? AND messageCollectionId = ? AND messageCollectionItemId = ? AND userId = ?', guild_id, messageCollectionId, messageCollectionItemId, userId);
+    }
+    hasUnreactedItems = async (guild_id: string, messageCollectionId: number, userId: string) : Promise<boolean> => {
+        const result = await this.db.get<{unworkedCount:number}>(`
+SELECT COUNT(*) AS [unworkedCount] 
+FROM messageCollectionItems AS mci
+WHERE mci.guild_id = ? and mci.messageCollectionId = ? AND mci.allowReact = 1 AND mci.pendingDelete = 0
+  AND NOT EXISTS(
+      SELECT 1 
+      FROM messageCollectionItemUsers AS mciu
+      WHERE mciu.guild_id = mci.guild_id AND mciu.messageCollectionId = mci.messageCollectionId AND mciu.messageCollectionItemId = mci.messageCollectionItemId AND mciu.userId = ?
+  )`, guild_id, messageCollectionId, userId);
+        return (result?.unworkedCount || 0) > 0;
     }
 
     sortUp = async (guild_id: string, messageCollectionId: number, afterIndex: number) => {
@@ -143,17 +175,23 @@ export default class MessageCollectionRepository extends DbRepository {
         );
         await this.setNeedsPublish(guild_id, messageCollectionId);
     }
+    deleteReactionsForUser = async (guild_id: string, messageCollectionId: number, userId: string) => {
+        await this.db.run('DELETE FROM messageCollectionItemUsers WHERE guild_id= ? AND messageCollectionId = ? AND userId = ?', guild_id, messageCollectionId, userId);
+    }
     deleteMessageItem = async (guild_id: string, messageCollectionId: number, messageCollectionItemId: number) => {
+        await this.db.run('DELETE FROM messageCollectionItemUsers WHERE guild_id= ? AND messageCollectionId = ? AND messageCollectionItemId = ?', guild_id, messageCollectionId, messageCollectionItemId);
         const deletedMessageItem = await this.selectItem(guild_id, messageCollectionId, messageCollectionItemId);
         if (deletedMessageItem === undefined) return;
         await this.db.run('DELETE FROM messageCollectionItems WHERE guild_id= ? AND messageCollectionId = ? AND messageCollectionItemId = ?', guild_id, messageCollectionId, messageCollectionItemId);
         await this.sortDown(guild_id, messageCollectionId, deletedMessageItem.sortIndex);
     }
     delete = async (guild_id: string, messageCollectionId: number) => {
+        await this.db.run('DELETE FROM messageCollectionItemUsers WHERE guild_id= ? AND messageCollectionId = ?', guild_id, messageCollectionId);
         await this.db.run('DELETE FROM messageCollectionItems WHERE guild_id= ? AND messageCollectionId = ?', guild_id, messageCollectionId);
         await this.db.run('DELETE FROM messageCollections WHERE guild_id= ? AND messageCollectionId = ?', guild_id, messageCollectionId);
     }
     deleteGuild = async (guild_id: string) => {
+        await this.db.run('DELETE FROM messageCollectionItemUsers WHERE guild_id= ?', guild_id);
         await this.db.run('DELETE FROM messageCollectionItems WHERE guild_id= ?', guild_id);
         await this.db.run('DELETE FROM messageCollections WHERE guild_id= ?', guild_id);
     }
