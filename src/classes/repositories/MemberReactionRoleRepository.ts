@@ -66,7 +66,7 @@ class MemberReactionRoleRepository extends DbRepository {
         const timestamp = (new Date()).getTime();
         await this.db.run(`
             UPDATE memberReactionRoles SET queue_last_updated = :queuets, queue_item_state = :queueitemstate, process_attempts = :processattempts
-            WHERE guild_id = :guildid AND reactionrole_id = :reactionroleid AND user_id = :userid queue_worker_id = :queueworkerid;
+            WHERE guild_id = :guildid AND reactionrole_id = :reactionroleid AND user_id = :userid AND queue_worker_id = :queueworkerid;
         `, { ':guildid': guild_id, ':userid': user_id, ':reactionroleid': reactionrole_id, ':queueworkerid': queue_worker_id, ':queuets': timestamp, ':queueitemstate': queue_item_state, ':processattempts': process_attempts });
     }
     
